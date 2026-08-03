@@ -16,8 +16,6 @@ function App() {
             {/* Auth Routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-
-            
           </Routes>
         </main>
       </BrowserRouter>

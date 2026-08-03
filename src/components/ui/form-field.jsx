@@ -2,13 +2,7 @@ import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-export function FormField({
-  label,
-  icon,
-  size = "lg",
-  className,
-  ...props
-}) {
+export function FormField({ label, icon, size = "lg", className, ...props }) {
   return (
     <Field>
       {label ? (
@@ -33,4 +27,3 @@ export function FormField({
     </Field>
   );
 }
-

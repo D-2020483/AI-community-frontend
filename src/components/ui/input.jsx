@@ -15,7 +15,7 @@ const inputVariants = cva(
     defaultVariants: {
       size: "default",
     },
-  }
+  },
 );
 
 function Input({ className, size, ...props }) {
