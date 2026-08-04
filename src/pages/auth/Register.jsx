@@ -1,6 +1,7 @@
 import React from "react";
 import { Activity, ArrowRight, ShieldCheck, UserRound } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import { AuthLayout } from "@/pages/auth/AuthLayout";
 import { FormField } from "@/components/ui/form-field";
 import { Button } from "@/components/ui/Button";
@@ -13,6 +14,7 @@ export default function Register() {
   const handleSubmit = (e) => {
     e?.preventDefault();
     login();
+    toast.success("Account created successfully! Please sign in.");
     navigate("/login");
   };
 

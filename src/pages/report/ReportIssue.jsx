@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import toast from "react-hot-toast";
 import { ResponsiveSidebar } from "@/components/layout/ResponsiveSidebar";
 import { HeaderNavbar } from "@/components/layout/HeaderNavbar";
 import { TellUs } from "@/pages/report/TellUs";
@@ -14,10 +15,14 @@ export default function ReportIssue() {
   // Handler passed to SetLocation to trigger submission view
   const handleSubmit = () => {
     setIsSubmitted(true);
+    toast.success("Report submitted successfully! AI is analyzing your issue…", {
+      id: "report-submitted",
+    });
   };
 
   // Handler to navigate to the track report page after reviewing AI results
   const handleTrackReport = (reportDetails) => {
+toast("Opening the live tracker for your report…");
     navigate("/track-report/RPT-1042", {
       state: {
         report: {

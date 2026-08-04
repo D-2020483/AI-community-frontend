@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
+import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { ResponsiveSidebar } from "@/components/layout/ResponsiveSidebar";
 import { HeaderNavbar } from "@/components/layout/HeaderNavbar";
@@ -12,6 +13,17 @@ import { reportsData } from "@/data/reportsData.js";
 export default function CitizenDashboard() {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    toast.success("Welcome back, Amara! You're all caught up.", {
+      id: "citizen-welcome",
+    });
+  }, []);
+
+  const handleReportIssue = () => {
+    toast("Let's get your issue resolved. Start by telling us what happened.");
+    navigate("/report-issue");
+  };
 
   return (
     <div className="flex min-h-screen bg-slate-50/60 font-sans">
@@ -38,8 +50,8 @@ export default function CitizenDashboard() {
               </p>
             </div>
 
-            <button
-              onClick={() => navigate("/report-issue")}
+<button
+              onClick={handleReportIssue}
               className="inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-sm shadow-indigo-600/20 transition-all hover:shadow-md hover:shadow-indigo-600/30 active:scale-[0.98] cursor-pointer"
             >
               <span>Report an issue</span>

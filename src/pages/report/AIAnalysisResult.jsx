@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import toast from "react-hot-toast";
 import {
   Wrench,
   Gauge,
@@ -40,14 +41,16 @@ export function AIAnalysisResult({
   const [category, setCategory] = useState(reportData.category);
   const [authority, setAuthority] = useState(reportData.authority);
 
-  const handleSave = () => {
+const handleSave = () => {
     setEditing(false);
+    toast.success("Report details updated successfully.");
   };
 
   const handleCancel = () => {
     setCategory(reportData.category);
     setAuthority(reportData.authority);
     setEditing(false);
+    toast("Changes discarded.");
   };
 
   const selectClass =
@@ -235,19 +238,6 @@ export function AIAnalysisResult({
                 Edit category & authority
               </button>
             )}
-
-            {/* Submission Banner */}
-            <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200/60 flex items-start gap-3">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-bold text-emerald-900">
-                  Report submitted successfully
-                </p>
-                <p className="text-[11px] text-emerald-700/80 mt-0.5">
-                  We'll notify you when its status changes.
-                </p>
-              </div>
-            </div>
           </div>
 
           {/* Action Button */}

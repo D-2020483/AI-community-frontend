@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import {
   Search,
@@ -376,22 +377,24 @@ export default function ReportsPage() {
                           >
                             <Eye className="h-4 w-4" />
                           </button>
-                          <button
+<button
                             title="Track Progress"
-                            onClick={() =>
+                            onClick={() => {
+                              toast("Opening live tracker for " + item.id + "…");
                               navigate(`/track-report/${item.id}`, {
                                 state: { report: getReportById(item.id) },
-                              })
-                            }
+                              });
+                            }}
                             className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
                           >
                             <Activity className="h-4 w-4" />
                           </button>
                           <button
                             title="Download Report"
-                            onClick={() =>
-                              downloadReport(getReportById(item.id))
-                            }
+                            onClick={() => {
+                              downloadReport(getReportById(item.id));
+                              toast.success("Report downloaded successfully.");
+                            }}
                             className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                           >
                             <Download className="h-4 w-4" />

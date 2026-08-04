@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import toast from "react-hot-toast";
 import {
   Search,
   CheckCheck,
@@ -79,18 +80,21 @@ export default function NotificationsPage() {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const markAsRead = (id) => {
+const markAsRead = (id) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
     );
+    toast.success("Notification marked as read.");
   };
 
   const markAllAsRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    toast.success("All notifications marked as read.");
   };
 
   const deleteNotification = (id) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
+    toast("Notification deleted.");
   };
 
   return (

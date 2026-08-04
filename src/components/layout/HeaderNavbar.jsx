@@ -23,7 +23,10 @@ export function HeaderNavbar({ title, onMenuToggle }) {
 
       <div className="flex items-center gap-3 lg:gap-4">
         {/* Notifications */}
-        <button className="relative p-2 rounded-xl text-slate-500 hover:bg-slate-50 border border-slate-200/80 transition-all hover:shadow-sm cursor-pointer">
+        <button
+          onClick={() => navigate("/notifications")}
+          className="relative p-2 rounded-xl text-slate-500 hover:bg-slate-50 border border-slate-200/80 transition-all hover:shadow-sm cursor-pointer"
+        >
           <Bell className="h-4 w-4" />
           <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white" />
         </button>

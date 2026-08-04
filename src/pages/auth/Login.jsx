@@ -1,6 +1,7 @@
 import React from "react";
 import { ArrowRight, ShieldCheck, UserRound } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import { AuthLayout } from "@/pages/auth/AuthLayout";
 import { FormField } from "@/components/ui/form-field";
 import { Button } from "@/components/ui/Button";
@@ -8,12 +9,23 @@ import { useAuth } from "@/context/AuthContext";
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, role } = useAuth();
 
   const handleSubmit = (e) => {
     e.preventDefault();
     login();
-    navigate("/dashboard");
+    // Route to the appropriate workspace based on the selected preview role
+    if (role === "admin") {
+      toast.success("Welcome back, Administrator!", {
+        duration: 4000,
+      });
+      navigate("/admin/dashboard");
+    } else {
+      toast.success("Welcome back! Signed in successfully.", {
+        duration: 4000,
+      });
+      navigate("/dashboard");
+    }
   };
 
   return (
