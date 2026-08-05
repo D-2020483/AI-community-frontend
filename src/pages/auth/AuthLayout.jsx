@@ -21,7 +21,8 @@ export function AuthLayout({ children }) {
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15 shadow-lg shadow-indigo-900/20 backdrop-blur-md ring-1 ring-white/20">
             <ShieldCheck className="h-5 w-5 text-white" />
           </span>
-          Civic<span className="opacity-90 text-indigo-200 font-bold">Link</span>
+          Civic
+          <span className="opacity-90 text-indigo-200 font-bold">Link</span>
         </div>
 
         {/*Hero pitch*/}

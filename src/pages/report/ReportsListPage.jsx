@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+﻿import React, { useState, useEffect, useRef, useMemo } from "react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import {
@@ -17,8 +17,8 @@ import {
   XCircle,
   Building2,
 } from "lucide-react";
-import { ResponsiveSidebar } from "@/components/layout/ResponsiveSidebar";
-import { HeaderNavbar } from "@/components/layout/HeaderNavbar";
+import { ResponsiveSidebar } from "@/layouts/citizen/ResponsiveSidebar";
+import { HeaderNavbar } from "@/layouts/citizen/HeaderNavbar";
 import { getReportById } from "@/data/reportsData";
 import { downloadReport } from "@/lib/reportDownload";
 import ReportDetailsModal from "@/components/reports/ReportDetailsModal";
@@ -377,10 +377,12 @@ export default function ReportsPage() {
                           >
                             <Eye className="h-4 w-4" />
                           </button>
-<button
+                          <button
                             title="Track Progress"
                             onClick={() => {
-                              toast("Opening live tracker for " + item.id + "…");
+                              toast(
+                                "Opening live tracker for " + item.id + "…",
+                              );
                               navigate(`/track-report/${item.id}`, {
                                 state: { report: getReportById(item.id) },
                               });

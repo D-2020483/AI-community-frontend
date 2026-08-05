@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   Users,
@@ -32,7 +32,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { AdminLayout } from "@/layouts/admin/AdminLayout";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { StatusBadge, PriorityBadge } from "@/components/ui/Badge";
 import { SkeletonCard, SkeletonTable } from "@/components/ui/Skeleton";
@@ -61,10 +61,10 @@ const CATEGORY_COLORS = {
   "Waste Management": "#7c3aed",
   "Street Lighting": "#0284c7",
   "Water Supply": "#0ea5e9",
-  "Drainage": "#06b6d4",
+  Drainage: "#06b6d4",
   "Public Safety": "#d97706",
-  "Traffic": "#e11d48",
-  "Others": "#94a3b8",
+  Traffic: "#e11d48",
+  Others: "#94a3b8",
 };
 
 function getStatusBadge(status) {
@@ -79,11 +79,56 @@ function getStatusBadge(status) {
 }
 
 const recentReports = [
-  { id: "RPT-1052", title: "Pothole on Oak Street", category: "Roads & Infrastructure", district: "North District", priority: "High", status: "Assigned", date: "Today", authority: "Public Works Dept." },
-  { id: "RPT-1051", title: "Broken Water Main", category: "Water Supply", district: "Central District", priority: "Critical", status: "In Progress", date: "Today", authority: "Water Authority" },
-  { id: "RPT-1050", title: "Illegal Dumping", category: "Waste Management", district: "East District", priority: "Medium", status: "Pending", date: "Yesterday", authority: "Sanitation Dept." },
-  { id: "RPT-1049", title: "Street Light Outage", category: "Street Lighting", district: "West District", priority: "Low", status: "Resolved", date: "Yesterday", authority: "Electrical Dept." },
-  { id: "RPT-1048", title: "Playground Damage", category: "Public Safety", district: "Central District", priority: "Medium", status: "Resolved", date: "2 days ago", authority: "Parks & Recreation" },
+  {
+    id: "RPT-1052",
+    title: "Pothole on Oak Street",
+    category: "Roads & Infrastructure",
+    district: "North District",
+    priority: "High",
+    status: "Assigned",
+    date: "Today",
+    authority: "Public Works Dept.",
+  },
+  {
+    id: "RPT-1051",
+    title: "Broken Water Main",
+    category: "Water Supply",
+    district: "Central District",
+    priority: "Critical",
+    status: "In Progress",
+    date: "Today",
+    authority: "Water Authority",
+  },
+  {
+    id: "RPT-1050",
+    title: "Illegal Dumping",
+    category: "Waste Management",
+    district: "East District",
+    priority: "Medium",
+    status: "Pending",
+    date: "Yesterday",
+    authority: "Sanitation Dept.",
+  },
+  {
+    id: "RPT-1049",
+    title: "Street Light Outage",
+    category: "Street Lighting",
+    district: "West District",
+    priority: "Low",
+    status: "Resolved",
+    date: "Yesterday",
+    authority: "Electrical Dept.",
+  },
+  {
+    id: "RPT-1048",
+    title: "Playground Damage",
+    category: "Public Safety",
+    district: "Central District",
+    priority: "Medium",
+    status: "Resolved",
+    date: "2 days ago",
+    authority: "Parks & Recreation",
+  },
 ];
 
 export default function AdminDashboard() {
@@ -190,9 +235,18 @@ export default function AdminDashboard() {
           </div>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={monthlyReports} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+              <AreaChart
+                data={monthlyReports}
+                margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
+              >
                 <defs>
-                  <linearGradient id="submittedGrad" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient
+                    id="submittedGrad"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
                     <stop offset="0%" stopColor="#4f46e5" stopOpacity={0.3} />
                     <stop offset="100%" stopColor="#4f46e5" stopOpacity={0} />
                   </linearGradient>
@@ -201,7 +255,11 @@ export default function AdminDashboard() {
                     <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="#f1f5f9"
+                  vertical={false}
+                />
                 <XAxis
                   dataKey="month"
                   tick={{ fontSize: 11, fill: "#94a3b8" }}
@@ -279,7 +337,10 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-2 gap-2 mt-2">
             {donutData.map((d) => (
               <div key={d.name} className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: d.color }} />
+                <span
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ background: d.color }}
+                />
                 <span className="text-[11px] font-semibold text-slate-600">
                   {d.name}
                 </span>
@@ -329,17 +390,30 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody className="divide-y divide-slate-50 text-xs font-medium text-slate-700">
                   {recentReports.map((r) => (
-                    <tr key={r.id} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="px-6 py-3.5 font-bold text-slate-900">{r.id}</td>
+                    <tr
+                      key={r.id}
+                      className="hover:bg-slate-50/60 transition-colors"
+                    >
+                      <td className="px-6 py-3.5 font-bold text-slate-900">
+                        {r.id}
+                      </td>
                       <td className="px-6 py-3.5">
-                        <p className="font-semibold text-slate-800">{r.title}</p>
+                        <p className="font-semibold text-slate-800">
+                          {r.title}
+                        </p>
                         <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
                           <MapPin className="h-3 w-3" /> {r.district}
                         </p>
                       </td>
-                      <td className="px-6 py-3.5"><PriorityBadge priority={r.priority} /></td>
-                      <td className="px-6 py-3.5">{getStatusBadge(r.status)}</td>
-                      <td className="px-6 py-3.5 text-slate-600">{r.authority}</td>
+                      <td className="px-6 py-3.5">
+                        <PriorityBadge priority={r.priority} />
+                      </td>
+                      <td className="px-6 py-3.5">
+                        {getStatusBadge(r.status)}
+                      </td>
+                      <td className="px-6 py-3.5 text-slate-600">
+                        {r.authority}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -399,4 +473,3 @@ export default function AdminDashboard() {
     </AdminLayout>
   );
 }
-

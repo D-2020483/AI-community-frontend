@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import {
   Pencil,
   Mail,
@@ -21,8 +21,8 @@ import {
   Wrench,
   Camera,
 } from "lucide-react";
-import { ResponsiveSidebar } from "@/components/layout/ResponsiveSidebar";
-import { HeaderNavbar } from "@/components/layout/HeaderNavbar";
+import { ResponsiveSidebar } from "@/layouts/citizen/ResponsiveSidebar";
+import { HeaderNavbar } from "@/layouts/citizen/HeaderNavbar";
 import {
   profileData,
   activitySummary,

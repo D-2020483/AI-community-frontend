@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -20,14 +20,23 @@ import {
   Activity,
   Gauge,
 } from "lucide-react";
-import { MapContainer, TileLayer, CircleMarker, Tooltip as LeafletTooltip, Popup } from "react-leaflet";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import {
+  MapContainer,
+  TileLayer,
+  CircleMarker,
+  Tooltip as LeafletTooltip,
+  Popup,
+} from "react-leaflet";
+import { AdminLayout } from "@/layouts/admin/AdminLayout";
 import { StatusBadge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { authoritiesData, officersData } from "@/data/adminData";
-import { buildOfficerEmail, generateTemporaryPassword } from "@/lib/emailTemplate";
+import {
+  buildOfficerEmail,
+  generateTemporaryPassword,
+} from "@/lib/emailTemplate";
 import { toast } from "react-hot-toast";
 
 const districtCenters = [
@@ -57,10 +66,10 @@ export default function AuthorityDetails() {
   const { authorityId } = useParams();
   const navigate = useNavigate();
   const [authority, setAuthority] = useState(
-    authoritiesData.find((a) => a.id === authorityId) || authoritiesData[0]
+    authoritiesData.find((a) => a.id === authorityId) || authoritiesData[0],
   );
   const [officers, setOfficers] = useState(
-    officersData.filter((o) => o.authorityId === authority.id)
+    officersData.filter((o) => o.authorityId === authority.id),
   );
   const [addOfficerOpen, setAddOfficerOpen] = useState(false);
   const [editOfficer, setEditOfficer] = useState(null);
@@ -77,9 +86,7 @@ export default function AuthorityDetails() {
     photo: null,
   });
 
-  const coveredDistricts = authority.coverage
-    .split(",")
-    .map((d) => d.trim());
+  const coveredDistricts = authority.coverage.split(",").map((d) => d.trim());
 
   const handleAddOfficer = (e) => {
     e.preventDefault();
@@ -142,7 +149,7 @@ export default function AuthorityDetails() {
     e.preventDefault();
     if (!editOfficer) return;
     setOfficers((prev) =>
-      prev.map((o) => (o.id === editOfficer.id ? { ...o, ...editOfficer } : o))
+      prev.map((o) => (o.id === editOfficer.id ? { ...o, ...editOfficer } : o)),
     );
     toast.success("Officer updated successfully");
     setEditOfficer(null);
@@ -150,14 +157,15 @@ export default function AuthorityDetails() {
 
   const handleToggleOfficer = () => {
     if (!deactivateOfficer) return;
-    const newStatus = deactivateOfficer.status === "Active" ? "Inactive" : "Active";
+    const newStatus =
+      deactivateOfficer.status === "Active" ? "Inactive" : "Active";
     setOfficers((prev) =>
       prev.map((o) =>
-        o.id === deactivateOfficer.id ? { ...o, status: newStatus } : o
-      )
+        o.id === deactivateOfficer.id ? { ...o, status: newStatus } : o,
+      ),
     );
     toast.success(
-      `${deactivateOfficer.firstName} ${deactivateOfficer.lastName} ${newStatus === "Active" ? "activated" : "deactivated"}`
+      `${deactivateOfficer.firstName} ${deactivateOfficer.lastName} ${newStatus === "Active" ? "activated" : "deactivated"}`,
     );
     setDeactivateOfficer(null);
   };
@@ -180,21 +188,20 @@ export default function AuthorityDetails() {
       authority: authority.name,
     });
     window.open("", "_blank").document.write(emailHtml);
-    toast.success(`Password reset. New credentials sent to ${resetOfficer.email}`);
+    toast.success(
+      `Password reset. New credentials sent to ${resetOfficer.email}`,
+    );
     setResetOfficer(null);
   };
 
   const resolutionRate = Math.round(
     (authority.resolvedReports /
       (authority.resolvedReports + authority.activeReports + 200)) *
-      100
+      100,
   );
 
   return (
-    <AdminLayout
-      title="Authority Details"
-      subtitle={authority.name}
-    >
+    <AdminLayout title="Authority Details" subtitle={authority.name}>
       {/* Back Button */}
       <button
         onClick={() => navigate("/admin/authorities")}
@@ -208,22 +215,31 @@ export default function AuthorityDetails() {
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 animate-fade-in">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
           <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center text-xl font-bold shadow-lg shadow-indigo-600/20">
-            {authority.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
+            {authority.name
+              .split(" ")
+              .map((n) => n[0])
+              .slice(0, 2)
+              .join("")}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold text-slate-900">{authority.name}</h2>
+              <h2 className="text-xl font-bold text-slate-900">
+                {authority.name}
+              </h2>
               <StatusBadge status={authority.status} />
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-slate-500">
               <span className="flex items-center gap-1.5">
-                <Mail className="h-3.5 w-3.5 text-slate-400" /> {authority.email}
+                <Mail className="h-3.5 w-3.5 text-slate-400" />{" "}
+                {authority.email}
               </span>
               <span className="flex items-center gap-1.5">
-                <Phone className="h-3.5 w-3.5 text-slate-400" /> {authority.phone}
+                <Phone className="h-3.5 w-3.5 text-slate-400" />{" "}
+                {authority.phone}
               </span>
               <span className="flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5 text-slate-400" /> {authority.operatingHours}
+                <Clock className="h-3.5 w-3.5 text-slate-400" />{" "}
+                {authority.operatingHours}
               </span>
             </div>
           </div>
@@ -246,7 +262,9 @@ export default function AuthorityDetails() {
             <Users className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-slate-900">{officers.length}</p>
+            <p className="text-2xl font-bold text-slate-900">
+              {officers.length}
+            </p>
             <p className="text-xs font-semibold text-slate-500">Officers</p>
           </div>
         </div>
@@ -255,8 +273,12 @@ export default function AuthorityDetails() {
             <ClipboardList className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-slate-900">{authority.activeReports}</p>
-            <p className="text-xs font-semibold text-slate-500">Active Reports</p>
+            <p className="text-2xl font-bold text-slate-900">
+              {authority.activeReports}
+            </p>
+            <p className="text-xs font-semibold text-slate-500">
+              Active Reports
+            </p>
           </div>
         </div>
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 flex items-center gap-4">
@@ -264,8 +286,12 @@ export default function AuthorityDetails() {
             <CheckCircle2 className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-slate-900">{authority.resolvedReports}</p>
-            <p className="text-xs font-semibold text-slate-500">Resolved Reports</p>
+            <p className="text-2xl font-bold text-slate-900">
+              {authority.resolvedReports}
+            </p>
+            <p className="text-xs font-semibold text-slate-500">
+              Resolved Reports
+            </p>
           </div>
         </div>
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 flex items-center gap-4">
@@ -273,8 +299,12 @@ export default function AuthorityDetails() {
             <Gauge className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-slate-900">{resolutionRate}%</p>
-            <p className="text-xs font-semibold text-slate-500">Resolution Rate</p>
+            <p className="text-2xl font-bold text-slate-900">
+              {resolutionRate}%
+            </p>
+            <p className="text-xs font-semibold text-slate-500">
+              Resolution Rate
+            </p>
           </div>
         </div>
       </div>
@@ -285,7 +315,9 @@ export default function AuthorityDetails() {
         <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
             <div>
-              <h3 className="text-base font-bold text-slate-900">Coverage Area</h3>
+              <h3 className="text-base font-bold text-slate-900">
+                Coverage Area
+              </h3>
               <p className="text-xs text-slate-400 mt-0.5">
                 GIS map of covered districts, towns & villages
               </p>
@@ -305,7 +337,7 @@ export default function AuthorityDetails() {
               />
               {coveredDistricts.map((name) => {
                 const d = districtCenters.find(
-                  (x) => x.name.toLowerCase() === name.toLowerCase()
+                  (x) => x.name.toLowerCase() === name.toLowerCase(),
                 );
                 if (!d) return null;
                 return (
@@ -336,11 +368,14 @@ export default function AuthorityDetails() {
         {/* Coverage Stats */}
         <div className="space-y-6">
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
-            <h3 className="text-base font-bold text-slate-900 mb-4">Coverage Stats</h3>
+            <h3 className="text-base font-bold text-slate-900 mb-4">
+              Coverage Stats
+            </h3>
             <div className="space-y-3">
               <div className="flex items-center justify-between py-2 border-b border-slate-50">
                 <span className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
-                  <Users2 className="h-3.5 w-3.5 text-slate-400" /> Population Covered
+                  <Users2 className="h-3.5 w-3.5 text-slate-400" /> Population
+                  Covered
                 </span>
                 <span className="text-sm font-bold text-slate-900">
                   {authority.populationCovered.toLocaleString()}
@@ -350,11 +385,14 @@ export default function AuthorityDetails() {
                 <span className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
                   <Globe className="h-3.5 w-3.5 text-slate-400" /> Area Size
                 </span>
-                <span className="text-sm font-bold text-slate-900">{authority.areaSize}</span>
+                <span className="text-sm font-bold text-slate-900">
+                  {authority.areaSize}
+                </span>
               </div>
               <div className="flex items-center justify-between py-2 border-b border-slate-50">
                 <span className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
-                  <Activity className="h-3.5 w-3.5 text-slate-400" /> Reports from Area
+                  <Activity className="h-3.5 w-3.5 text-slate-400" /> Reports
+                  from Area
                 </span>
                 <span className="text-sm font-bold text-slate-900">
                   {authority.activeReports + authority.resolvedReports}
@@ -362,9 +400,12 @@ export default function AuthorityDetails() {
               </div>
               <div className="flex items-center justify-between py-2">
                 <span className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
-                  <Gauge className="h-3.5 w-3.5 text-slate-400" /> Resolution Rate
+                  <Gauge className="h-3.5 w-3.5 text-slate-400" /> Resolution
+                  Rate
                 </span>
-                <span className="text-sm font-bold text-emerald-600">{resolutionRate}%</span>
+                <span className="text-sm font-bold text-emerald-600">
+                  {resolutionRate}%
+                </span>
               </div>
             </div>
             <div className="mt-4 pt-4 border-t border-slate-100">
@@ -373,7 +414,10 @@ export default function AuthorityDetails() {
               </h4>
               <div className="flex flex-wrap gap-1.5">
                 {coveredDistricts.map((d) => (
-                  <span key={d} className="px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-600 text-[10px] font-bold border border-indigo-100">
+                  <span
+                    key={d}
+                    className="px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-600 text-[10px] font-bold border border-indigo-100"
+                  >
                     {d}
                   </span>
                 ))}
@@ -385,17 +429,25 @@ export default function AuthorityDetails() {
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
             <div className="flex items-center gap-2 mb-4">
               <Building2 className="h-4 w-4 text-indigo-600" />
-              <h3 className="text-base font-bold text-slate-900">Responsible Person</h3>
+              <h3 className="text-base font-bold text-slate-900">
+                Responsible Person
+              </h3>
             </div>
             <div className="flex items-center gap-4">
               <div className="h-14 w-14 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center text-base font-bold shadow-md shadow-indigo-600/20 ring-2 ring-indigo-100">
-                {authority.head.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
+                {authority.head.name
+                  .split(" ")
+                  .map((n) => n[0])
+                  .slice(0, 2)
+                  .join("")}
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-bold text-slate-900 truncate">
                   {authority.head.name}
                 </p>
-                <p className="text-xs text-slate-500">{authority.head.position}</p>
+                <p className="text-xs text-slate-500">
+                  {authority.head.position}
+                </p>
                 <div className="flex items-center gap-3 mt-1.5 text-[10px] text-slate-400">
                   <span className="flex items-center gap-1">
                     <Mail className="h-3 w-3" /> {authority.head.email}
@@ -441,7 +493,9 @@ export default function AuthorityDetails() {
                   <th className="px-6 py-3 font-bold">Officer</th>
                   <th className="px-6 py-3 font-bold">Position</th>
                   <th className="px-6 py-3 font-bold">Contact</th>
-                  <th className="px-6 py-3 font-bold text-center">Active Reports</th>
+                  <th className="px-6 py-3 font-bold text-center">
+                    Active Reports
+                  </th>
                   <th className="px-6 py-3 font-bold text-center">Completed</th>
                   <th className="px-6 py-3 font-bold">Availability</th>
                   <th className="px-6 py-3 font-bold text-right">Actions</th>
@@ -449,7 +503,10 @@ export default function AuthorityDetails() {
               </thead>
               <tbody className="divide-y divide-slate-50 text-xs font-medium text-slate-700">
                 {officers.map((o) => (
-                  <tr key={o.id} className="hover:bg-slate-50/60 transition-colors">
+                  <tr
+                    key={o.id}
+                    className="hover:bg-slate-50/60 transition-colors"
+                  >
                     <td className="px-6 py-3.5">
                       <div className="flex items-center gap-3">
                         <OfficerAvatar officer={o} />
@@ -457,14 +514,18 @@ export default function AuthorityDetails() {
                           <p className="font-bold text-slate-900">
                             {o.firstName} {o.lastName}
                           </p>
-                          <p className="text-[10px] text-slate-400">{o.department}</p>
+                          <p className="text-[10px] text-slate-400">
+                            {o.department}
+                          </p>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-3.5 text-slate-600">{o.position}</td>
                     <td className="px-6 py-3.5">
                       <p className="text-slate-600">{o.email}</p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">{o.phone}</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        {o.phone}
+                      </p>
                     </td>
                     <td className="px-6 py-3.5 text-center">
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 font-bold text-[10px]">
@@ -473,7 +534,8 @@ export default function AuthorityDetails() {
                     </td>
                     <td className="px-6 py-3.5 text-center">
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-bold text-[10px]">
-                        <CheckCircle2 className="h-3 w-3" /> {o.completedReports}
+                        <CheckCircle2 className="h-3 w-3" />{" "}
+                        {o.completedReports}
                       </span>
                     </td>
                     <td className="px-6 py-3.5">
@@ -482,8 +544,8 @@ export default function AuthorityDetails() {
                           o.availability === "Available"
                             ? "bg-emerald-50 text-emerald-600"
                             : o.availability === "On Field"
-                            ? "bg-sky-50 text-sky-600"
-                            : "bg-amber-50 text-amber-700"
+                              ? "bg-sky-50 text-sky-600"
+                              : "bg-amber-50 text-amber-700"
                         }`}
                       >
                         <span
@@ -491,8 +553,8 @@ export default function AuthorityDetails() {
                             o.availability === "Available"
                               ? "bg-emerald-500"
                               : o.availability === "On Field"
-                              ? "bg-sky-500"
-                              : "bg-amber-500"
+                                ? "bg-sky-500"
+                                : "bg-amber-500"
                           }`}
                         />
                         {o.availability}
@@ -515,7 +577,9 @@ export default function AuthorityDetails() {
                           <Key className="h-4 w-4" />
                         </button>
                         <button
-                          title={o.status === "Active" ? "Deactivate" : "Activate"}
+                          title={
+                            o.status === "Active" ? "Deactivate" : "Activate"
+                          }
                           onClick={() => setDeactivateOfficer(o)}
                           className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
                         >
@@ -562,7 +626,11 @@ export default function AuthorityDetails() {
           </>
         }
       >
-        <form id="add-officer-form" onSubmit={handleAddOfficer} className="space-y-4">
+        <form
+          id="add-officer-form"
+          onSubmit={handleAddOfficer}
+          className="space-y-4"
+        >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>First Name *</label>
@@ -570,7 +638,9 @@ export default function AuthorityDetails() {
                 type="text"
                 className={inputClass}
                 value={form.firstName}
-                onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, firstName: e.target.value })
+                }
               />
             </div>
             <div>
@@ -617,7 +687,9 @@ export default function AuthorityDetails() {
                 className={inputClass}
                 placeholder="e.g. Field Operations"
                 value={form.department}
-                onChange={(e) => setForm({ ...form, department: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, department: e.target.value })
+                }
               />
             </div>
             <div className="sm:col-span-2">
@@ -633,26 +705,39 @@ export default function AuthorityDetails() {
               <label className={labelClass}>Upload Photo</label>
               <label className="flex items-center justify-center gap-3 border-2 border-dashed border-slate-200 hover:border-indigo-300 rounded-xl p-5 cursor-pointer transition-colors bg-slate-50/50 hover:bg-indigo-50/30">
                 {form.photo ? (
-                  <img src={form.photo} alt="Officer" className="h-14 w-14 rounded-xl object-cover" />
+                  <img
+                    src={form.photo}
+                    alt="Officer"
+                    className="h-14 w-14 rounded-xl object-cover"
+                  />
                 ) : (
                   <div className="flex items-center gap-3 text-slate-400">
                     <Users className="h-5 w-5" />
                     <div className="text-left">
-                      <p className="text-xs font-bold text-slate-600">Upload officer photo</p>
-                      <p className="text-[10px] text-slate-400">PNG or JPG. Optional.</p>
+                      <p className="text-xs font-bold text-slate-600">
+                        Upload officer photo
+                      </p>
+                      <p className="text-[10px] text-slate-400">
+                        PNG or JPG. Optional.
+                      </p>
                     </div>
                   </div>
                 )}
-                <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handlePhotoUpload}
+                />
               </label>
             </div>
           </div>
           <div className="rounded-xl bg-indigo-50/70 border border-indigo-100 p-4">
             <p className="text-[11px] text-indigo-700 leading-relaxed">
-              <strong className="font-bold">On save:</strong> A temporary password will be
-              generated and login credentials emailed to{" "}
-              <strong>{form.email || "the officer's official email"}</strong>. First login
-              will require a password change.
+              <strong className="font-bold">On save:</strong> A temporary
+              password will be generated and login credentials emailed to{" "}
+              <strong>{form.email || "the officer's official email"}</strong>.
+              First login will require a password change.
             </p>
           </div>
         </form>
@@ -690,7 +775,12 @@ export default function AuthorityDetails() {
                   type="text"
                   className={inputClass}
                   value={editOfficer.firstName}
-                  onChange={(e) => setEditOfficer({ ...editOfficer, firstName: e.target.value })}
+                  onChange={(e) =>
+                    setEditOfficer({
+                      ...editOfficer,
+                      firstName: e.target.value,
+                    })
+                  }
                 />
               </div>
               <div>
@@ -699,7 +789,9 @@ export default function AuthorityDetails() {
                   type="text"
                   className={inputClass}
                   value={editOfficer.lastName}
-                  onChange={(e) => setEditOfficer({ ...editOfficer, lastName: e.target.value })}
+                  onChange={(e) =>
+                    setEditOfficer({ ...editOfficer, lastName: e.target.value })
+                  }
                 />
               </div>
               <div>
@@ -708,7 +800,9 @@ export default function AuthorityDetails() {
                   type="email"
                   className={inputClass}
                   value={editOfficer.email}
-                  onChange={(e) => setEditOfficer({ ...editOfficer, email: e.target.value })}
+                  onChange={(e) =>
+                    setEditOfficer({ ...editOfficer, email: e.target.value })
+                  }
                 />
               </div>
               <div>
@@ -717,7 +811,9 @@ export default function AuthorityDetails() {
                   type="tel"
                   className={inputClass}
                   value={editOfficer.phone}
-                  onChange={(e) => setEditOfficer({ ...editOfficer, phone: e.target.value })}
+                  onChange={(e) =>
+                    setEditOfficer({ ...editOfficer, phone: e.target.value })
+                  }
                 />
               </div>
               <div>
@@ -726,7 +822,9 @@ export default function AuthorityDetails() {
                   type="text"
                   className={inputClass}
                   value={editOfficer.position}
-                  onChange={(e) => setEditOfficer({ ...editOfficer, position: e.target.value })}
+                  onChange={(e) =>
+                    setEditOfficer({ ...editOfficer, position: e.target.value })
+                  }
                 />
               </div>
               <div>
@@ -735,7 +833,12 @@ export default function AuthorityDetails() {
                   type="text"
                   className={inputClass}
                   value={editOfficer.department}
-                  onChange={(e) => setEditOfficer({ ...editOfficer, department: e.target.value })}
+                  onChange={(e) =>
+                    setEditOfficer({
+                      ...editOfficer,
+                      department: e.target.value,
+                    })
+                  }
                 />
               </div>
             </div>
@@ -746,13 +849,19 @@ export default function AuthorityDetails() {
       {/* Deactivate Officer Dialog */}
       <ConfirmDialog
         open={!!deactivateOfficer}
-        title={deactivateOfficer?.status === "Active" ? "Deactivate officer?" : "Activate officer?"}
+        title={
+          deactivateOfficer?.status === "Active"
+            ? "Deactivate officer?"
+            : "Activate officer?"
+        }
         message={
           deactivateOfficer?.status === "Active"
             ? `${deactivateOfficer?.firstName} ${deactivateOfficer?.lastName} will no longer be able to log in or receive new reports.`
             : `${deactivateOfficer?.firstName} ${deactivateOfficer?.lastName} will be re-activated and can receive reports again.`
         }
-        confirmLabel={deactivateOfficer?.status === "Active" ? "Deactivate" : "Activate"}
+        confirmLabel={
+          deactivateOfficer?.status === "Active" ? "Deactivate" : "Activate"
+        }
         tone={deactivateOfficer?.status === "Active" ? "danger" : "primary"}
         onConfirm={handleToggleOfficer}
         onCancel={() => setDeactivateOfficer(null)}
@@ -782,4 +891,3 @@ export default function AuthorityDetails() {
     </AdminLayout>
   );
 }
-

@@ -1,20 +1,26 @@
 import React, { useState } from "react";
-import { AdminSidebar } from "@/components/admin/AdminSidebar";
-import { AdminHeader } from "@/components/admin/AdminHeader";
-import { toast } from "react-hot-toast";
+import { Navigate } from "react-router-dom";
+import { AuthoritySidebar } from "@/layouts/authority/AuthoritySidebar";
+import { AuthorityHeader } from "@/layouts/authority/AuthorityHeader";
+import { useAuthority } from "@/context/AuthorityContext";
 
-export function AdminLayout({ title, subtitle, children, headerActions }) {
+export function AuthorityLayout({ title, subtitle, children }) {
+  const { authority } = useAuthority();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  if (!authority) {
+    return <Navigate to="/login" replace />;
+  }
 
   return (
     <div className="flex min-h-screen bg-slate-50/60 font-sans">
-      <AdminSidebar
+      <AuthoritySidebar
         isOpen={mobileMenuOpen}
         onClose={() => setMobileMenuOpen(false)}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
-        <AdminHeader
+        <AuthorityHeader
           title={title}
           subtitle={subtitle}
           onMenuToggle={() => setMobileMenuOpen(true)}
@@ -27,5 +33,3 @@ export function AdminLayout({ title, subtitle, children, headerActions }) {
     </div>
   );
 }
-
-export { toast };

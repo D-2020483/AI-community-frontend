@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import {
   Settings,
   Globe,
@@ -12,7 +12,7 @@ import {
   Bell,
   CheckCircle2,
 } from "lucide-react";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { AdminLayout } from "@/layouts/admin/AdminLayout";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { systemSettings } from "@/data/adminData";
 import { toast } from "react-hot-toast";
@@ -56,7 +56,9 @@ function SectionCard({ icon: Icon, title, subtitle, children, onSave }) {
           </div>
           <div>
             <h3 className="text-sm font-bold text-slate-900">{title}</h3>
-            {subtitle && <p className="text-[11px] text-slate-400 mt-0.5">{subtitle}</p>}
+            {subtitle && (
+              <p className="text-[11px] text-slate-400 mt-0.5">{subtitle}</p>
+            )}
           </div>
         </div>
         {onSave && (
@@ -109,7 +111,12 @@ export default function SettingsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         {/* General */}
-        <SectionCard icon={Globe} title="General Settings" subtitle="System identity and branding" onSave={saveGeneral}>
+        <SectionCard
+          icon={Globe}
+          title="General Settings"
+          subtitle="System identity and branding"
+          onSave={saveGeneral}
+        >
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -118,7 +125,9 @@ export default function SettingsPage() {
                   type="text"
                   className={inputClass}
                   value={general.systemName}
-                  onChange={(e) => setGeneral({ ...general, systemName: e.target.value })}
+                  onChange={(e) =>
+                    setGeneral({ ...general, systemName: e.target.value })
+                  }
                 />
               </div>
               <div>
@@ -126,7 +135,9 @@ export default function SettingsPage() {
                 <select
                   className={inputClass + " appearance-none"}
                   value={general.timezone}
-                  onChange={(e) => setGeneral({ ...general, timezone: e.target.value })}
+                  onChange={(e) =>
+                    setGeneral({ ...general, timezone: e.target.value })
+                  }
                 >
                   <option>GMT+1</option>
                   <option>GMT+0</option>
@@ -140,7 +151,9 @@ export default function SettingsPage() {
                   type="text"
                   className={inputClass}
                   value={general.baseUrl}
-                  onChange={(e) => setGeneral({ ...general, baseUrl: e.target.value })}
+                  onChange={(e) =>
+                    setGeneral({ ...general, baseUrl: e.target.value })
+                  }
                 />
               </div>
               <div className="col-span-2">
@@ -149,7 +162,9 @@ export default function SettingsPage() {
                   type="email"
                   className={inputClass}
                   value={general.supportEmail}
-                  onChange={(e) => setGeneral({ ...general, supportEmail: e.target.value })}
+                  onChange={(e) =>
+                    setGeneral({ ...general, supportEmail: e.target.value })
+                  }
                 />
               </div>
             </div>
@@ -157,7 +172,12 @@ export default function SettingsPage() {
         </SectionCard>
 
         {/* Email Automation */}
-        <SectionCard icon={Mail} title="Email Automation" subtitle="Automated email delivery preferences" onSave={saveEmail}>
+        <SectionCard
+          icon={Mail}
+          title="Email Automation"
+          subtitle="Automated email delivery preferences"
+          onSave={saveEmail}
+        >
           <div className="divide-y divide-slate-50">
             <Toggle
               checked={email.enableAutomation}
@@ -191,7 +211,9 @@ export default function SettingsPage() {
                 type="text"
                 className={inputClass}
                 value={email.senderName}
-                onChange={(e) => setEmail({ ...email, senderName: e.target.value })}
+                onChange={(e) =>
+                  setEmail({ ...email, senderName: e.target.value })
+                }
               />
             </div>
             <div>
@@ -200,18 +222,27 @@ export default function SettingsPage() {
                 type="email"
                 className={inputClass}
                 value={email.senderEmail}
-                onChange={(e) => setEmail({ ...email, senderEmail: e.target.value })}
+                onChange={(e) =>
+                  setEmail({ ...email, senderEmail: e.target.value })
+                }
               />
             </div>
           </div>
         </SectionCard>
 
         {/* Security */}
-        <SectionCard icon={Shield} title="Security" subtitle="Authentication and access policies" onSave={saveSecurity}>
+        <SectionCard
+          icon={Shield}
+          title="Security"
+          subtitle="Authentication and access policies"
+          onSave={saveSecurity}
+        >
           <div className="divide-y divide-slate-50">
             <Toggle
               checked={security.forcePasswordChange}
-              onChange={(v) => setSecurity({ ...security, forcePasswordChange: v })}
+              onChange={(v) =>
+                setSecurity({ ...security, forcePasswordChange: v })
+              }
               label="Force Password Change"
               description="Require password change on first login"
             />
@@ -229,7 +260,12 @@ export default function SettingsPage() {
                 type="number"
                 className={inputClass}
                 value={security.minPasswordLength}
-                onChange={(e) => setSecurity({ ...security, minPasswordLength: Number(e.target.value) })}
+                onChange={(e) =>
+                  setSecurity({
+                    ...security,
+                    minPasswordLength: Number(e.target.value),
+                  })
+                }
               />
             </div>
             <div>
@@ -237,7 +273,9 @@ export default function SettingsPage() {
               <select
                 className={inputClass + " appearance-none"}
                 value={security.sessionTimeout}
-                onChange={(e) => setSecurity({ ...security, sessionTimeout: e.target.value })}
+                onChange={(e) =>
+                  setSecurity({ ...security, sessionTimeout: e.target.value })
+                }
               >
                 <option>15 min</option>
                 <option>30 min</option>
@@ -249,7 +287,12 @@ export default function SettingsPage() {
         </SectionCard>
 
         {/* Report Configuration */}
-        <SectionCard icon={ClipboardList} title="Report Configuration" subtitle="Report workflow and SLA policies" onSave={saveReport}>
+        <SectionCard
+          icon={ClipboardList}
+          title="Report Configuration"
+          subtitle="Report workflow and SLA policies"
+          onSave={saveReport}
+        >
           <div className="divide-y divide-slate-50">
             <Toggle
               checked={report.autoAssign}
@@ -259,7 +302,9 @@ export default function SettingsPage() {
             />
             <Toggle
               checked={report.allowCitizenComments}
-              onChange={(v) => setReport({ ...report, allowCitizenComments: v })}
+              onChange={(v) =>
+                setReport({ ...report, allowCitizenComments: v })
+              }
               label="Allow Citizen Comments"
               description="Allow citizens to comment on their reports"
             />
@@ -271,7 +316,12 @@ export default function SettingsPage() {
                 type="number"
                 className={inputClass}
                 value={report.escalationDays}
-                onChange={(e) => setReport({ ...report, escalationDays: Number(e.target.value) })}
+                onChange={(e) =>
+                  setReport({
+                    ...report,
+                    escalationDays: Number(e.target.value),
+                  })
+                }
               />
             </div>
             <div>
@@ -280,7 +330,9 @@ export default function SettingsPage() {
                 type="number"
                 className={inputClass}
                 value={report.slaDays}
-                onChange={(e) => setReport({ ...report, slaDays: Number(e.target.value) })}
+                onChange={(e) =>
+                  setReport({ ...report, slaDays: Number(e.target.value) })
+                }
               />
             </div>
           </div>
@@ -297,15 +349,21 @@ export default function SettingsPage() {
             <h3 className="text-sm font-bold">System Information</h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Version</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Version
+                </p>
                 <p className="text-sm font-bold mt-1">Civic Link v1.0.0</p>
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Environment</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Environment
+                </p>
                 <p className="text-sm font-bold mt-1">Production</p>
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">AI Engine</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  AI Engine
+                </p>
                 <p className="text-sm font-bold mt-1">Civic AI · v1.0</p>
               </div>
             </div>

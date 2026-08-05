@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+﻿import React, { useState, useMemo } from "react";
 import toast from "react-hot-toast";
 import {
   Search,
@@ -14,8 +14,8 @@ import {
   Clock,
   Inbox,
 } from "lucide-react";
-import { ResponsiveSidebar } from "@/components/layout/ResponsiveSidebar";
-import { HeaderNavbar } from "@/components/layout/HeaderNavbar";
+import { ResponsiveSidebar } from "@/layouts/citizen/ResponsiveSidebar";
+import { HeaderNavbar } from "@/layouts/citizen/HeaderNavbar";
 import {
   notificationsData,
   notificationCategories,
@@ -80,7 +80,7 @@ export default function NotificationsPage() {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-const markAsRead = (id) => {
+  const markAsRead = (id) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
     );

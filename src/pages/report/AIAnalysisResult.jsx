@@ -41,7 +41,7 @@ export function AIAnalysisResult({
   const [category, setCategory] = useState(reportData.category);
   const [authority, setAuthority] = useState(reportData.authority);
 
-const handleSave = () => {
+  const handleSave = () => {
     setEditing(false);
     toast.success("Report details updated successfully.");
   };

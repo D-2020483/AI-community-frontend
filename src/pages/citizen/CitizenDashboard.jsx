@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from "react";
-import { Plus } from "lucide-react";
+﻿import React, { useState, useEffect } from "react";
+import { Plus, Sparkles } from "lucide-react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
-import { ResponsiveSidebar } from "@/components/layout/ResponsiveSidebar";
-import { HeaderNavbar } from "@/components/layout/HeaderNavbar";
-import { StatsCards } from "@/pages/citizen/StatsCards.jsx";
-import { RecentReportsTable } from "@/pages/citizen/RecentReportsTable.jsx";
-import { CommunityImpactCard } from "@/pages/citizen/CommunityImpactCard.jsx";
+import { ResponsiveSidebar } from "@/layouts/citizen/ResponsiveSidebar";
+import { HeaderNavbar } from "@/layouts/citizen/HeaderNavbar";
+import { StatsCards } from "@/components/citizen/StatsCards.jsx";
+import { RecentReportsTable } from "@/components/citizen/RecentReportsTable.jsx";
+import { CommunityImpactCard } from "@/components/citizen/CommunityImpactCard.jsx";
 import { statsData } from "@/data/citizenDashboardData.js";
 import { reportsData } from "@/data/reportsData.js";
 
@@ -40,23 +40,30 @@ export default function CitizenDashboard() {
 
         <main className="p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6 lg:space-y-8">
           {/* Header Banner */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
-                Welcome back, Amara
-              </h2>
-              <p className="text-xs text-slate-500 mt-1">
-                Together, we're building a safer, better community.
-              </p>
+          <div className="bg-gradient-to-br from-indigo-600 via-indigo-600 to-violet-600 rounded-2xl p-6 sm:p-8 text-white shadow-lg shadow-indigo-600/20 relative overflow-hidden animate-fade-in">
+            <div className="pointer-events-none absolute -top-20 -right-20 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-24 -left-16 h-64 w-64 rounded-full bg-sky-300/20 blur-3xl" />
+            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 border border-white/20 text-[11px] font-semibold backdrop-blur-md">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Citizen Overview
+                </span>
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mt-3">
+                  Welcome back, Amara
+                </h2>
+                <p className="text-sm text-indigo-100/90 mt-1">
+                  Together, we're building a safer, better community.
+                </p>
+              </div>
+              <button
+                onClick={handleReportIssue}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-white text-indigo-700 text-xs font-semibold rounded-xl shadow-md shadow-indigo-900/20 hover:bg-indigo-50 transition-all active:scale-[0.98] cursor-pointer"
+              >
+                <Plus className="h-4 w-4" />
+                Report an issue
+              </button>
             </div>
-
-<button
-              onClick={handleReportIssue}
-              className="inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-sm shadow-indigo-600/20 transition-all hover:shadow-md hover:shadow-indigo-600/30 active:scale-[0.98] cursor-pointer"
-            >
-              <span>Report an issue</span>
-              <Plus className="h-4 w-4" />
-            </button>
           </div>
 
           {/* Top Metric Cards */}

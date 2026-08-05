@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+﻿import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search,
@@ -18,7 +18,7 @@ import {
   Upload,
   ShieldCheck,
 } from "lucide-react";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { AdminLayout } from "@/layouts/admin/AdminLayout";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SkeletonCard } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -26,7 +26,10 @@ import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StatusBadge } from "@/components/ui/Badge";
 import { authoritiesData } from "@/data/adminData";
-import { generateTemporaryPassword, buildAuthorityEmail } from "@/lib/emailTemplate";
+import {
+  generateTemporaryPassword,
+  buildAuthorityEmail,
+} from "@/lib/emailTemplate";
 import { toast } from "react-hot-toast";
 
 function AuthorityLogo({ name, logo, status }) {
@@ -36,7 +39,11 @@ function AuthorityLogo({ name, logo, status }) {
     .slice(0, 2)
     .join("");
   return logo ? (
-    <img src={logo} alt={name} className="h-14 w-14 rounded-xl object-cover ring-1 ring-slate-200" />
+    <img
+      src={logo}
+      alt={name}
+      className="h-14 w-14 rounded-xl object-cover ring-1 ring-slate-200"
+    />
   ) : (
     <div
       className={`h-14 w-14 rounded-xl flex items-center justify-center text-base font-bold ring-1 ${
@@ -143,7 +150,7 @@ export default function AuthorityManagement() {
     window.open("", "_blank").document.write(emailHtml);
     toast.success(
       `Authority created. Temporary password sent to ${form.email}`,
-      { duration: 5000 }
+      { duration: 5000 },
     );
   };
 
@@ -162,7 +169,7 @@ export default function AuthorityManagement() {
     e.preventDefault();
     if (!editAuth) return;
     setAuthorities((prev) =>
-      prev.map((a) => (a.id === editAuth.id ? { ...a, ...editAuth } : a))
+      prev.map((a) => (a.id === editAuth.id ? { ...a, ...editAuth } : a)),
     );
     toast.success("Authority updated successfully");
     setEditAuth(null);
@@ -170,14 +177,15 @@ export default function AuthorityManagement() {
 
   const handleDeactivate = () => {
     if (!deactivateAuth) return;
-    const newStatus = deactivateAuth.status === "Active" ? "Inactive" : "Active";
+    const newStatus =
+      deactivateAuth.status === "Active" ? "Inactive" : "Active";
     setAuthorities((prev) =>
       prev.map((a) =>
-        a.id === deactivateAuth.id ? { ...a, status: newStatus } : a
-      )
+        a.id === deactivateAuth.id ? { ...a, status: newStatus } : a,
+      ),
     );
     toast.success(
-      `${deactivateAuth.name} ${newStatus === "Active" ? "activated" : "deactivated"} successfully`
+      `${deactivateAuth.name} ${newStatus === "Active" ? "activated" : "deactivated"} successfully`,
     );
     setDeactivateAuth(null);
   };
@@ -253,7 +261,11 @@ export default function AuthorityManagement() {
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-4 min-w-0">
-                  <AuthorityLogo name={a.name} logo={a.logo} status={a.status} />
+                  <AuthorityLogo
+                    name={a.name}
+                    logo={a.logo}
+                    status={a.status}
+                  />
                   <div className="min-w-0">
                     <h3 className="text-sm font-bold text-slate-900 truncate">
                       {a.name}
@@ -275,25 +287,33 @@ export default function AuthorityManagement() {
                   <p className="text-[9px] font-bold uppercase text-slate-400 flex items-center gap-1">
                     <Users className="h-3 w-3" /> Officers
                   </p>
-                  <p className="text-sm font-bold text-slate-900 mt-0.5">{a.officers}</p>
+                  <p className="text-sm font-bold text-slate-900 mt-0.5">
+                    {a.officers}
+                  </p>
                 </div>
                 <div className="p-2.5 rounded-lg bg-slate-50/80 border border-slate-100">
                   <p className="text-[9px] font-bold uppercase text-slate-400 flex items-center gap-1">
                     <ClipboardList className="h-3 w-3" /> Active Reports
                   </p>
-                  <p className="text-sm font-bold text-slate-900 mt-0.5">{a.activeReports}</p>
+                  <p className="text-sm font-bold text-slate-900 mt-0.5">
+                    {a.activeReports}
+                  </p>
                 </div>
                 <div className="p-2.5 rounded-lg bg-slate-50/80 border border-slate-100">
                   <p className="text-[9px] font-bold uppercase text-slate-400 flex items-center gap-1">
                     <CheckCircle2 className="h-3 w-3" /> Resolved Reports
                   </p>
-                  <p className="text-sm font-bold text-slate-900 mt-0.5">{a.resolvedReports}</p>
+                  <p className="text-sm font-bold text-slate-900 mt-0.5">
+                    {a.resolvedReports}
+                  </p>
                 </div>
                 <div className="p-2.5 rounded-lg bg-slate-50/80 border border-slate-100">
                   <p className="text-[9px] font-bold uppercase text-slate-400 flex items-center gap-1">
                     <MapPin className="h-3 w-3" /> District
                   </p>
-                  <p className="text-sm font-bold text-slate-900 mt-0.5 truncate">{a.district}</p>
+                  <p className="text-sm font-bold text-slate-900 mt-0.5 truncate">
+                    {a.district}
+                  </p>
                 </div>
               </div>
 
@@ -371,13 +391,21 @@ export default function AuthorityManagement() {
           </>
         }
       >
-        <form id="create-auth-form" onSubmit={handleCreate} className="space-y-4">
+        <form
+          id="create-auth-form"
+          onSubmit={handleCreate}
+          className="space-y-4"
+        >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
               <label className={labelClass}>Authority Logo</label>
               <label className="flex items-center justify-center gap-3 border-2 border-dashed border-slate-200 hover:border-indigo-300 rounded-xl p-6 cursor-pointer transition-colors bg-slate-50/50 hover:bg-indigo-50/30">
                 {form.logo ? (
-                  <img src={form.logo} alt="Logo" className="h-16 w-16 rounded-xl object-cover" />
+                  <img
+                    src={form.logo}
+                    alt="Logo"
+                    className="h-16 w-16 rounded-xl object-cover"
+                  />
                 ) : (
                   <div className="flex items-center gap-3 text-slate-400">
                     <Upload className="h-5 w-5" />
@@ -391,7 +419,12 @@ export default function AuthorityManagement() {
                     </div>
                   </div>
                 )}
-                <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleLogoUpload}
+                />
               </label>
             </div>
             <div>
@@ -431,7 +464,15 @@ export default function AuthorityManagement() {
                 value={form.district}
                 onChange={(e) => setForm({ ...form, district: e.target.value })}
               >
-                {["North District", "Central District", "East District", "West District", "South District", "Industrial Zone", "Harbor District"].map((d) => (
+                {[
+                  "North District",
+                  "Central District",
+                  "East District",
+                  "West District",
+                  "South District",
+                  "Industrial Zone",
+                  "Harbor District",
+                ].map((d) => (
                   <option key={d}>{d}</option>
                 ))}
               </select>
@@ -462,17 +503,20 @@ export default function AuthorityManagement() {
                 className={inputClass + " min-h-24 resize-y"}
                 placeholder="Describe the authority's responsibilities..."
                 value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, description: e.target.value })
+                }
               />
             </div>
           </div>
           <div className="rounded-xl bg-indigo-50/70 border border-indigo-100 p-4">
             <p className="text-[11px] text-indigo-700 leading-relaxed">
-              <strong className="font-bold">On save:</strong> A secure account will
-              be generated, a temporary password created, and a professional HTML
-              email with login credentials will be sent to{" "}
-              <strong>{form.email || "the official email"}</strong>. The authority
-              will be required to change their password after first login.
+              <strong className="font-bold">On save:</strong> A secure account
+              will be generated, a temporary password created, and a
+              professional HTML email with login credentials will be sent to{" "}
+              <strong>{form.email || "the official email"}</strong>. The
+              authority will be required to change their password after first
+              login.
             </p>
           </div>
         </form>
@@ -511,7 +555,9 @@ export default function AuthorityManagement() {
                   type="text"
                   className={inputClass}
                   value={editAuth.name}
-                  onChange={(e) => setEditAuth({ ...editAuth, name: e.target.value })}
+                  onChange={(e) =>
+                    setEditAuth({ ...editAuth, name: e.target.value })
+                  }
                 />
               </div>
               <div>
@@ -520,7 +566,9 @@ export default function AuthorityManagement() {
                   type="email"
                   className={inputClass}
                   value={editAuth.email}
-                  onChange={(e) => setEditAuth({ ...editAuth, email: e.target.value })}
+                  onChange={(e) =>
+                    setEditAuth({ ...editAuth, email: e.target.value })
+                  }
                 />
               </div>
               <div>
@@ -529,7 +577,9 @@ export default function AuthorityManagement() {
                   type="tel"
                   className={inputClass}
                   value={editAuth.phone}
-                  onChange={(e) => setEditAuth({ ...editAuth, phone: e.target.value })}
+                  onChange={(e) =>
+                    setEditAuth({ ...editAuth, phone: e.target.value })
+                  }
                 />
               </div>
               <div>
@@ -538,7 +588,9 @@ export default function AuthorityManagement() {
                   type="text"
                   className={inputClass}
                   value={editAuth.district}
-                  onChange={(e) => setEditAuth({ ...editAuth, district: e.target.value })}
+                  onChange={(e) =>
+                    setEditAuth({ ...editAuth, district: e.target.value })
+                  }
                 />
               </div>
               <div className="sm:col-span-2">
@@ -547,7 +599,9 @@ export default function AuthorityManagement() {
                   type="text"
                   className={inputClass}
                   value={editAuth.address}
-                  onChange={(e) => setEditAuth({ ...editAuth, address: e.target.value })}
+                  onChange={(e) =>
+                    setEditAuth({ ...editAuth, address: e.target.value })
+                  }
                 />
               </div>
               <div className="sm:col-span-2">
@@ -556,7 +610,9 @@ export default function AuthorityManagement() {
                   type="text"
                   className={inputClass}
                   value={editAuth.coverage}
-                  onChange={(e) => setEditAuth({ ...editAuth, coverage: e.target.value })}
+                  onChange={(e) =>
+                    setEditAuth({ ...editAuth, coverage: e.target.value })
+                  }
                 />
               </div>
             </div>
@@ -567,13 +623,19 @@ export default function AuthorityManagement() {
       {/* Deactivate Dialog */}
       <ConfirmDialog
         open={!!deactivateAuth}
-        title={deactivateAuth?.status === "Active" ? "Deactivate authority?" : "Activate authority?"}
+        title={
+          deactivateAuth?.status === "Active"
+            ? "Deactivate authority?"
+            : "Activate authority?"
+        }
         message={
           deactivateAuth?.status === "Active"
             ? `${deactivateAuth?.name} will stop receiving new reports and its officers won't be able to log in.`
             : `${deactivateAuth?.name} will be re-activated and resume receiving reports.`
         }
-        confirmLabel={deactivateAuth?.status === "Active" ? "Deactivate" : "Activate"}
+        confirmLabel={
+          deactivateAuth?.status === "Active" ? "Deactivate" : "Activate"
+        }
         tone={deactivateAuth?.status === "Active" ? "danger" : "primary"}
         onConfirm={handleDeactivate}
         onCancel={() => setDeactivateAuth(null)}
@@ -592,4 +654,3 @@ export default function AuthorityManagement() {
     </AdminLayout>
   );
 }
-

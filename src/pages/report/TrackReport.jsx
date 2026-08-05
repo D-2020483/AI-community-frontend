@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
   MapPin,
@@ -15,8 +15,8 @@ import {
   Activity,
   ShieldCheck,
 } from "lucide-react";
-import { ResponsiveSidebar } from "@/components/layout/ResponsiveSidebar";
-import { HeaderNavbar } from "@/components/layout/HeaderNavbar";
+import { ResponsiveSidebar } from "@/layouts/citizen/ResponsiveSidebar";
+import { HeaderNavbar } from "@/layouts/citizen/HeaderNavbar";
 import { reportsData } from "@/data/reportsData";
 
 const STATUS_STEPS = [

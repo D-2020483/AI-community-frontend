@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+﻿import React, { useState, useEffect, useMemo } from "react";
 import {
   Search,
   ChevronDown,
@@ -15,7 +15,7 @@ import {
   ShieldCheck,
   Upload,
 } from "lucide-react";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { AdminLayout } from "@/layouts/admin/AdminLayout";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SkeletonTable } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -23,7 +23,10 @@ import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StatusBadge } from "@/components/ui/Badge";
 import { officersData, authoritiesData } from "@/data/adminData";
-import { buildOfficerEmail, generateTemporaryPassword } from "@/lib/emailTemplate";
+import {
+  buildOfficerEmail,
+  generateTemporaryPassword,
+} from "@/lib/emailTemplate";
 import { toast } from "react-hot-toast";
 
 const PAGE_SIZE = 6;
@@ -31,7 +34,11 @@ const PAGE_SIZE = 6;
 function OfficerAvatar({ officer }) {
   const initials = `${officer.firstName[0]}${officer.lastName[0]}`;
   return officer.avatar ? (
-    <img src={officer.avatar} alt="Officer" className="h-9 w-9 rounded-full object-cover ring-2 ring-indigo-50" />
+    <img
+      src={officer.avatar}
+      alt="Officer"
+      className="h-9 w-9 rounded-full object-cover ring-2 ring-indigo-50"
+    />
   ) : (
     <div className="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-100 to-violet-100 text-indigo-600 flex items-center justify-center font-bold text-xs ring-2 ring-indigo-50">
       {initials}
@@ -51,7 +58,9 @@ function AvailabilityBadge({ availability }) {
     Busy: "bg-amber-500",
   };
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold ${map[availability]}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold ${map[availability]}`}
+    >
       <span className={`h-1.5 w-1.5 rounded-full ${dotMap[availability]}`} />
       {availability}
     </span>
@@ -93,7 +102,7 @@ export default function OfficerManagement() {
 
   const authorities = useMemo(
     () => ["All Authorities", ...authoritiesData.map((a) => a.name)],
-    []
+    [],
   );
 
   const filtered = useMemo(() => {
@@ -105,7 +114,8 @@ export default function OfficerManagement() {
         o.email.toLowerCase().includes(q) ||
         o.position.toLowerCase().includes(q);
       const matchAuth =
-        filterAuthority === "All Authorities" || o.authority === filterAuthority;
+        filterAuthority === "All Authorities" ||
+        o.authority === filterAuthority;
       const matchStatus =
         filterStatus === "All Status" || o.status === filterStatus;
       return matchQ && matchAuth && matchStatus;
@@ -115,7 +125,7 @@ export default function OfficerManagement() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice(
     (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE
+    currentPage * PAGE_SIZE,
   );
 
   useEffect(() => {
@@ -184,7 +194,7 @@ export default function OfficerManagement() {
     e.preventDefault();
     if (!editOfficer) return;
     setOfficers((prev) =>
-      prev.map((o) => (o.id === editOfficer.id ? { ...o, ...editOfficer } : o))
+      prev.map((o) => (o.id === editOfficer.id ? { ...o, ...editOfficer } : o)),
     );
     toast.success("Officer updated successfully");
     setEditOfficer(null);
@@ -195,11 +205,11 @@ export default function OfficerManagement() {
     const newStatus = toggleOfficer.status === "Active" ? "Inactive" : "Active";
     setOfficers((prev) =>
       prev.map((o) =>
-        o.id === toggleOfficer.id ? { ...o, status: newStatus } : o
-      )
+        o.id === toggleOfficer.id ? { ...o, status: newStatus } : o,
+      ),
     );
     toast.success(
-      `${toggleOfficer.firstName} ${toggleOfficer.lastName} ${newStatus === "Active" ? "activated" : "deactivated"}`
+      `${toggleOfficer.firstName} ${toggleOfficer.lastName} ${newStatus === "Active" ? "activated" : "deactivated"}`,
     );
     setToggleOfficer(null);
   };
@@ -221,7 +231,9 @@ export default function OfficerManagement() {
       authority: resetOfficer.authority,
     });
     window.open("", "_blank").document.write(emailHtml);
-    toast.success(`Password reset. New credentials sent to ${resetOfficer.email}`);
+    toast.success(
+      `Password reset. New credentials sent to ${resetOfficer.email}`,
+    );
     setResetOfficer(null);
   };
 
@@ -308,7 +320,10 @@ export default function OfficerManagement() {
               </thead>
               <tbody className="divide-y divide-slate-50 text-xs font-medium text-slate-700">
                 {paginated.map((o) => (
-                  <tr key={o.id} className="hover:bg-slate-50/60 transition-colors">
+                  <tr
+                    key={o.id}
+                    className="hover:bg-slate-50/60 transition-colors"
+                  >
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
                         <OfficerAvatar officer={o} />
@@ -316,12 +331,16 @@ export default function OfficerManagement() {
                           <p className="font-bold text-slate-900">
                             {o.firstName} {o.lastName}
                           </p>
-                          <p className="text-[10px] text-slate-400">{o.department}</p>
+                          <p className="text-[10px] text-slate-400">
+                            {o.department}
+                          </p>
                         </div>
                       </div>
                     </td>
                     <td className="px-5 py-3.5 text-slate-600">{o.position}</td>
-                    <td className="px-5 py-3.5 text-slate-600">{o.authority}</td>
+                    <td className="px-5 py-3.5 text-slate-600">
+                      {o.authority}
+                    </td>
                     <td className="px-5 py-3.5">
                       <p className="flex items-center gap-1.5 text-slate-600">
                         <Mail className="h-3 w-3 text-slate-400" /> {o.email}
@@ -337,7 +356,8 @@ export default function OfficerManagement() {
                     </td>
                     <td className="px-5 py-3.5 text-center">
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-bold text-[10px]">
-                        <CheckCircle2 className="h-3 w-3" /> {o.completedReports}
+                        <CheckCircle2 className="h-3 w-3" />{" "}
+                        {o.completedReports}
                       </span>
                     </td>
                     <td className="px-5 py-3.5">
@@ -363,7 +383,9 @@ export default function OfficerManagement() {
                           <Key className="h-4 w-4" />
                         </button>
                         <button
-                          title={o.status === "Active" ? "Deactivate" : "Activate"}
+                          title={
+                            o.status === "Active" ? "Deactivate" : "Activate"
+                          }
                           onClick={() => setToggleOfficer(o)}
                           className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
                         >
@@ -417,21 +439,25 @@ export default function OfficerManagement() {
                 >
                   Previous
                 </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => setCurrentPage(p)}
-                    className={`h-8 w-8 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                      p === currentPage
-                        ? "bg-indigo-600 text-white shadow-sm"
-                        : "text-slate-600 border border-slate-200 hover:bg-slate-50"
-                    }`}
-                  >
-                    {p}
-                  </button>
-                ))}
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                  (p) => (
+                    <button
+                      key={p}
+                      onClick={() => setCurrentPage(p)}
+                      className={`h-8 w-8 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                        p === currentPage
+                          ? "bg-indigo-600 text-white shadow-sm"
+                          : "text-slate-600 border border-slate-200 hover:bg-slate-50"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ),
+                )}
                 <button
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  onClick={() =>
+                    setCurrentPage((p) => Math.min(totalPages, p + 1))
+                  }
                   disabled={currentPage === totalPages}
                   className="px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                 >
@@ -467,7 +493,11 @@ export default function OfficerManagement() {
           </>
         }
       >
-        <form id="create-officer-form" onSubmit={handleCreate} className="space-y-4">
+        <form
+          id="create-officer-form"
+          onSubmit={handleCreate}
+          className="space-y-4"
+        >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>First Name *</label>
@@ -475,7 +505,9 @@ export default function OfficerManagement() {
                 type="text"
                 className={inputClass}
                 value={form.firstName}
-                onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, firstName: e.target.value })
+                }
               />
             </div>
             <div>
@@ -522,7 +554,9 @@ export default function OfficerManagement() {
                 className={inputClass}
                 placeholder="e.g. Field Operations"
                 value={form.department}
-                onChange={(e) => setForm({ ...form, department: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, department: e.target.value })
+                }
               />
             </div>
             <div className="sm:col-span-2">
@@ -532,7 +566,9 @@ export default function OfficerManagement() {
                   className={inputClass + " appearance-none"}
                   value={form.authority}
                   onChange={(e) => {
-                    const auth = authoritiesData.find((a) => a.name === e.target.value);
+                    const auth = authoritiesData.find(
+                      (a) => a.name === e.target.value,
+                    );
                     setForm({
                       ...form,
                       authority: e.target.value,
@@ -541,7 +577,9 @@ export default function OfficerManagement() {
                   }}
                 >
                   {authoritiesData.map((a) => (
-                    <option key={a.id} value={a.name}>{a.name}</option>
+                    <option key={a.id} value={a.name}>
+                      {a.name}
+                    </option>
                   ))}
                 </select>
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
@@ -551,24 +589,37 @@ export default function OfficerManagement() {
               <label className={labelClass}>Upload Photo</label>
               <label className="flex items-center justify-center gap-3 border-2 border-dashed border-slate-200 hover:border-indigo-300 rounded-xl p-5 cursor-pointer transition-colors bg-slate-50/50 hover:bg-indigo-50/30">
                 {form.photo ? (
-                  <img src={form.photo} alt="Officer" className="h-14 w-14 rounded-xl object-cover" />
+                  <img
+                    src={form.photo}
+                    alt="Officer"
+                    className="h-14 w-14 rounded-xl object-cover"
+                  />
                 ) : (
                   <div className="flex items-center gap-3 text-slate-400">
                     <Upload className="h-5 w-5" />
                     <div className="text-left">
-                      <p className="text-xs font-bold text-slate-600">Upload officer photo</p>
-                      <p className="text-[10px] text-slate-400">PNG or JPG. Optional.</p>
+                      <p className="text-xs font-bold text-slate-600">
+                        Upload officer photo
+                      </p>
+                      <p className="text-[10px] text-slate-400">
+                        PNG or JPG. Optional.
+                      </p>
                     </div>
                   </div>
                 )}
-                <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handlePhotoUpload}
+                />
               </label>
             </div>
           </div>
           <div className="rounded-xl bg-indigo-50/70 border border-indigo-100 p-4">
             <p className="text-[11px] text-indigo-700 leading-relaxed">
-              <strong className="font-bold">On save:</strong> A temporary password will be generated
-              and login credentials emailed to{" "}
+              <strong className="font-bold">On save:</strong> A temporary
+              password will be generated and login credentials emailed to{" "}
               <strong>{form.email || "the officer's official email"}</strong>.
             </p>
           </div>
@@ -607,7 +658,12 @@ export default function OfficerManagement() {
                   type="text"
                   className={inputClass}
                   value={editOfficer.firstName}
-                  onChange={(e) => setEditOfficer({ ...editOfficer, firstName: e.target.value })}
+                  onChange={(e) =>
+                    setEditOfficer({
+                      ...editOfficer,
+                      firstName: e.target.value,
+                    })
+                  }
                 />
               </div>
               <div>
@@ -616,7 +672,9 @@ export default function OfficerManagement() {
                   type="text"
                   className={inputClass}
                   value={editOfficer.lastName}
-                  onChange={(e) => setEditOfficer({ ...editOfficer, lastName: e.target.value })}
+                  onChange={(e) =>
+                    setEditOfficer({ ...editOfficer, lastName: e.target.value })
+                  }
                 />
               </div>
               <div>
@@ -625,7 +683,9 @@ export default function OfficerManagement() {
                   type="email"
                   className={inputClass}
                   value={editOfficer.email}
-                  onChange={(e) => setEditOfficer({ ...editOfficer, email: e.target.value })}
+                  onChange={(e) =>
+                    setEditOfficer({ ...editOfficer, email: e.target.value })
+                  }
                 />
               </div>
               <div>
@@ -634,7 +694,9 @@ export default function OfficerManagement() {
                   type="tel"
                   className={inputClass}
                   value={editOfficer.phone}
-                  onChange={(e) => setEditOfficer({ ...editOfficer, phone: e.target.value })}
+                  onChange={(e) =>
+                    setEditOfficer({ ...editOfficer, phone: e.target.value })
+                  }
                 />
               </div>
               <div>
@@ -643,7 +705,9 @@ export default function OfficerManagement() {
                   type="text"
                   className={inputClass}
                   value={editOfficer.position}
-                  onChange={(e) => setEditOfficer({ ...editOfficer, position: e.target.value })}
+                  onChange={(e) =>
+                    setEditOfficer({ ...editOfficer, position: e.target.value })
+                  }
                 />
               </div>
               <div>
@@ -652,7 +716,12 @@ export default function OfficerManagement() {
                   type="text"
                   className={inputClass}
                   value={editOfficer.department}
-                  onChange={(e) => setEditOfficer({ ...editOfficer, department: e.target.value })}
+                  onChange={(e) =>
+                    setEditOfficer({
+                      ...editOfficer,
+                      department: e.target.value,
+                    })
+                  }
                 />
               </div>
             </div>
@@ -663,13 +732,19 @@ export default function OfficerManagement() {
       {/* Toggle Officer Dialog */}
       <ConfirmDialog
         open={!!toggleOfficer}
-        title={toggleOfficer?.status === "Active" ? "Deactivate officer?" : "Activate officer?"}
+        title={
+          toggleOfficer?.status === "Active"
+            ? "Deactivate officer?"
+            : "Activate officer?"
+        }
         message={
           toggleOfficer?.status === "Active"
             ? `${toggleOfficer?.firstName} ${toggleOfficer?.lastName} will no longer be able to log in or receive new reports.`
             : `${toggleOfficer?.firstName} ${toggleOfficer?.lastName} will be re-activated and can receive reports again.`
         }
-        confirmLabel={toggleOfficer?.status === "Active" ? "Deactivate" : "Activate"}
+        confirmLabel={
+          toggleOfficer?.status === "Active" ? "Deactivate" : "Activate"
+        }
         tone={toggleOfficer?.status === "Active" ? "danger" : "primary"}
         onConfirm={handleToggle}
         onCancel={() => setToggleOfficer(null)}

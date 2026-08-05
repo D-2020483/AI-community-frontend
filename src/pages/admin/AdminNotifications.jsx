@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+﻿import React, { useState, useMemo } from "react";
 import {
   Search,
   CheckCheck,
@@ -17,7 +17,7 @@ import {
   MailX,
   Bell,
 } from "lucide-react";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { AdminLayout } from "@/layouts/admin/AdminLayout";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -28,15 +28,51 @@ import {
 import { toast } from "react-hot-toast";
 
 const typeConfig = {
-  "new-report": { icon: FilePlus2, cls: "bg-indigo-50 text-indigo-600", label: "New Report" },
-  critical: { icon: AlertCircle, cls: "bg-rose-50 text-rose-600", label: "Critical" },
-  "authority-created": { icon: Building2, cls: "bg-violet-50 text-violet-600", label: "Authority" },
-  "officer-created": { icon: ShieldCheck, cls: "bg-sky-50 text-sky-600", label: "Officer" },
-  escalated: { icon: GitBranch, cls: "bg-amber-50 text-amber-600", label: "Escalated" },
-  resolved: { icon: CheckCircle2, cls: "bg-emerald-50 text-emerald-600", label: "Resolved" },
-  "email-failed": { icon: MailX, cls: "bg-rose-50 text-rose-600", label: "Email Failed" },
-  inactive: { icon: TrendingDown, cls: "bg-slate-100 text-slate-600", label: "Inactive" },
-  overdue: { icon: Flag, cls: "bg-orange-50 text-orange-600", label: "Overdue" },
+  "new-report": {
+    icon: FilePlus2,
+    cls: "bg-indigo-50 text-indigo-600",
+    label: "New Report",
+  },
+  critical: {
+    icon: AlertCircle,
+    cls: "bg-rose-50 text-rose-600",
+    label: "Critical",
+  },
+  "authority-created": {
+    icon: Building2,
+    cls: "bg-violet-50 text-violet-600",
+    label: "Authority",
+  },
+  "officer-created": {
+    icon: ShieldCheck,
+    cls: "bg-sky-50 text-sky-600",
+    label: "Officer",
+  },
+  escalated: {
+    icon: GitBranch,
+    cls: "bg-amber-50 text-amber-600",
+    label: "Escalated",
+  },
+  resolved: {
+    icon: CheckCircle2,
+    cls: "bg-emerald-50 text-emerald-600",
+    label: "Resolved",
+  },
+  "email-failed": {
+    icon: MailX,
+    cls: "bg-rose-50 text-rose-600",
+    label: "Email Failed",
+  },
+  inactive: {
+    icon: TrendingDown,
+    cls: "bg-slate-100 text-slate-600",
+    label: "Inactive",
+  },
+  overdue: {
+    icon: Flag,
+    cls: "bg-orange-50 text-orange-600",
+    label: "Overdue",
+  },
 };
 
 const filters = ["All", "Read", "Unread", "Today", "This Week"];
@@ -71,7 +107,7 @@ export default function AdminNotifications() {
 
   const markAsRead = (id) => {
     setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
     );
   };
 
@@ -163,7 +199,9 @@ export default function AdminNotifications() {
                     : "text-slate-500 border-slate-200 hover:bg-slate-50"
                 }`}
               >
-                <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1.5 align-middle ${c.color}`} />
+                <span
+                  className={`inline-block h-1.5 w-1.5 rounded-full mr-1.5 align-middle ${c.color}`}
+                />
                 {c.label}
               </button>
             );
@@ -185,14 +223,18 @@ export default function AdminNotifications() {
                   : "border-indigo-100 bg-indigo-50/40 shadow-sm"
               }`}
             >
-              <div className={`p-2.5 rounded-xl shrink-0 transition-transform group-hover:scale-105 ${cfg.cls}`}>
+              <div
+                className={`p-2.5 rounded-xl shrink-0 transition-transform group-hover:scale-105 ${cfg.cls}`}
+              >
                 <Icon className="h-5 w-5" />
               </div>
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold text-slate-900">{n.title}</h3>
+                    <h3 className="text-sm font-bold text-slate-900">
+                      {n.title}
+                    </h3>
                     {!n.read && (
                       <span className="h-2 w-2 rounded-full bg-indigo-600 shrink-0" />
                     )}
@@ -223,7 +265,9 @@ export default function AdminNotifications() {
                   <span className="text-[10px] font-semibold text-slate-400 inline-flex items-center gap-1">
                     <Clock className="h-3 w-3" /> {n.date} · {n.time}
                   </span>
-                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide ${cfg.cls}`}>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide ${cfg.cls}`}
+                  >
                     {cfg.label}
                   </span>
                 </div>

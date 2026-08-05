@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+﻿import React, { useState, useMemo, useEffect } from "react";
 import {
   Search,
   ChevronDown,
@@ -25,7 +25,7 @@ import {
   Building2,
   Activity,
 } from "lucide-react";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { AdminLayout } from "@/layouts/admin/AdminLayout";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SkeletonTable } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -81,11 +81,41 @@ const activityConfig = {
 };
 
 const mockTimeline = [
-  { id: 1, action: "submitted", title: "Submitted a report", description: "Pothole on Oak Street (RPT-1042)", time: "Today, 10:24 AM" },
-  { id: 2, action: "notification", title: "Received notification", description: "Your report RPT-1042 was approved", time: "Today, 10:30 AM" },
-  { id: 3, action: "responded", title: "Authority responded", description: "Water Authority responded to RPT-1036", time: "Yesterday, 4:45 PM" },
-  { id: 4, action: "updated", title: "Updated profile", description: "Changed phone number", time: "2 days ago" },
-  { id: 5, action: "resolved", title: "Report resolved", description: "RPT-1039 was marked as resolved", time: "3 days ago" },
+  {
+    id: 1,
+    action: "submitted",
+    title: "Submitted a report",
+    description: "Pothole on Oak Street (RPT-1042)",
+    time: "Today, 10:24 AM",
+  },
+  {
+    id: 2,
+    action: "notification",
+    title: "Received notification",
+    description: "Your report RPT-1042 was approved",
+    time: "Today, 10:30 AM",
+  },
+  {
+    id: 3,
+    action: "responded",
+    title: "Authority responded",
+    description: "Water Authority responded to RPT-1036",
+    time: "Yesterday, 4:45 PM",
+  },
+  {
+    id: 4,
+    action: "updated",
+    title: "Updated profile",
+    description: "Changed phone number",
+    time: "2 days ago",
+  },
+  {
+    id: 5,
+    action: "resolved",
+    title: "Report resolved",
+    description: "RPT-1039 was marked as resolved",
+    time: "3 days ago",
+  },
 ];
 
 export default function UserManagement() {
@@ -108,7 +138,7 @@ export default function UserManagement() {
 
   const districts = useMemo(
     () => ["All Districts", ...new Set(users.map((u) => u.district))],
-    [users]
+    [users],
   );
 
   const filtered = useMemo(() => {
@@ -131,7 +161,7 @@ export default function UserManagement() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice(
     (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE
+    currentPage * PAGE_SIZE,
   );
 
   useEffect(() => {
@@ -186,7 +216,8 @@ export default function UserManagement() {
   <div class="body"><table><thead><tr><th>Name</th><th>Email</th><th>District</th><th>Joined</th><th>Reports</th><th>Status</th></tr></thead>
   <tbody>${filtered
     .map(
-      (u) => `<tr><td>${u.fullName}</td><td>${u.email}</td><td>${u.district}</td><td>${u.joined}</td><td>${u.reports}</td><td>${u.status}</td></tr>`
+      (u) =>
+        `<tr><td>${u.fullName}</td><td>${u.email}</td><td>${u.district}</td><td>${u.joined}</td><td>${u.reports}</td><td>${u.status}</td></tr>`,
     )
     .join("")}</tbody></table></div>
 </div></body></html>`;
@@ -204,10 +235,12 @@ export default function UserManagement() {
     if (!toggleUser) return;
     const newStatus = toggleUser.status === "Active" ? "Inactive" : "Active";
     setUsers((prev) =>
-      prev.map((u) => (u.id === toggleUser.id ? { ...u, status: newStatus } : u))
+      prev.map((u) =>
+        u.id === toggleUser.id ? { ...u, status: newStatus } : u,
+      ),
     );
     toast.success(
-      `${toggleUser.fullName} ${newStatus === "Active" ? "enabled" : "disabled"} successfully`
+      `${toggleUser.fullName} ${newStatus === "Active" ? "enabled" : "disabled"} successfully`,
     );
     setToggleUser(null);
   };
@@ -222,7 +255,7 @@ export default function UserManagement() {
   const handleSaveEdit = (e) => {
     e.preventDefault();
     setUsers((prev) =>
-      prev.map((u) => (u.id === editUser.id ? { ...u, ...editUser } : u))
+      prev.map((u) => (u.id === editUser.id ? { ...u, ...editUser } : u)),
     );
     toast.success("User profile updated successfully");
     setEditUser(null);
@@ -244,8 +277,16 @@ export default function UserManagement() {
         subtitle={`${users.length} registered citizens in the system`}
         actions={
           <>
-            <ExportButton onExport={handleExportCSV} format="csv" label="Export CSV" />
-            <ExportButton onExport={handleExportPDF} format="pdf" label="Export PDF" />
+            <ExportButton
+              onExport={handleExportCSV}
+              format="csv"
+              label="Export CSV"
+            />
+            <ExportButton
+              onExport={handleExportPDF}
+              format="pdf"
+              label="Export PDF"
+            />
           </>
         }
       />
@@ -294,7 +335,13 @@ export default function UserManagement() {
               onChange={(e) => setFilterDate(e.target.value)}
               className={selectClass}
             >
-              {["All Dates", "Last 7 days", "Last 30 days", "Last 90 days", "This year"].map((d) => (
+              {[
+                "All Dates",
+                "Last 7 days",
+                "Last 30 days",
+                "Last 90 days",
+                "This year",
+              ].map((d) => (
                 <option key={d}>{d}</option>
               ))}
             </select>
@@ -323,13 +370,20 @@ export default function UserManagement() {
               </thead>
               <tbody className="divide-y divide-slate-50 text-xs font-medium text-slate-700">
                 {paginated.map((u) => (
-                  <tr key={u.id} className="hover:bg-slate-50/60 transition-colors group">
+                  <tr
+                    key={u.id}
+                    className="hover:bg-slate-50/60 transition-colors group"
+                  >
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-3">
                         <UserAvatar user={u} />
                         <div>
-                          <p className="font-bold text-slate-900">{u.fullName}</p>
-                          <p className="text-[10px] text-slate-400">ID: {u.id}</p>
+                          <p className="font-bold text-slate-900">
+                            {u.fullName}
+                          </p>
+                          <p className="text-[10px] text-slate-400">
+                            ID: {u.id}
+                          </p>
                         </div>
                       </div>
                     </td>
@@ -443,21 +497,25 @@ export default function UserManagement() {
                 >
                   Previous
                 </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => setCurrentPage(p)}
-                    className={`h-8 w-8 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                      p === currentPage
-                        ? "bg-indigo-600 text-white shadow-sm"
-                        : "text-slate-600 border border-slate-200 hover:bg-slate-50"
-                    }`}
-                  >
-                    {p}
-                  </button>
-                ))}
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                  (p) => (
+                    <button
+                      key={p}
+                      onClick={() => setCurrentPage(p)}
+                      className={`h-8 w-8 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                        p === currentPage
+                          ? "bg-indigo-600 text-white shadow-sm"
+                          : "text-slate-600 border border-slate-200 hover:bg-slate-50"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ),
+                )}
                 <button
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  onClick={() =>
+                    setCurrentPage((p) => Math.min(totalPages, p + 1))
+                  }
                   disabled={currentPage === totalPages}
                   className="px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                 >
@@ -501,7 +559,11 @@ export default function UserManagement() {
             {/* Profile Header */}
             <div className="flex items-center gap-4">
               <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center text-xl font-bold shadow-lg shadow-indigo-600/20">
-                {viewUser.fullName.split(" ").map((n) => n[0]).slice(0, 2).join("")}
+                {viewUser.fullName
+                  .split(" ")
+                  .map((n) => n[0])
+                  .slice(0, 2)
+                  .join("")}
               </div>
               <div>
                 <h4 className="text-lg font-bold text-slate-900">
@@ -517,20 +579,36 @@ export default function UserManagement() {
             {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="p-3.5 rounded-xl bg-indigo-50/70 border border-indigo-100">
-                <p className="text-xl font-bold text-indigo-600">{viewUser.totalReports}</p>
-                <p className="text-[10px] font-bold text-slate-500 uppercase mt-0.5">Total Reports</p>
+                <p className="text-xl font-bold text-indigo-600">
+                  {viewUser.totalReports}
+                </p>
+                <p className="text-[10px] font-bold text-slate-500 uppercase mt-0.5">
+                  Total Reports
+                </p>
               </div>
               <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-100">
-                <p className="text-xl font-bold text-emerald-600">{viewUser.resolvedReports}</p>
-                <p className="text-[10px] font-bold text-slate-500 uppercase mt-0.5">Resolved</p>
+                <p className="text-xl font-bold text-emerald-600">
+                  {viewUser.resolvedReports}
+                </p>
+                <p className="text-[10px] font-bold text-slate-500 uppercase mt-0.5">
+                  Resolved
+                </p>
               </div>
               <div className="p-3.5 rounded-xl bg-amber-50/70 border border-amber-100">
-                <p className="text-xl font-bold text-amber-600">{viewUser.pendingReports}</p>
-                <p className="text-[10px] font-bold text-slate-500 uppercase mt-0.5">Pending</p>
+                <p className="text-xl font-bold text-amber-600">
+                  {viewUser.pendingReports}
+                </p>
+                <p className="text-[10px] font-bold text-slate-500 uppercase mt-0.5">
+                  Pending
+                </p>
               </div>
               <div className="p-3.5 rounded-xl bg-sky-50/70 border border-sky-100">
-                <p className="text-xl font-bold text-sky-600">{viewUser.inProgressReports}</p>
-                <p className="text-[10px] font-bold text-slate-500 uppercase mt-0.5">In Progress</p>
+                <p className="text-xl font-bold text-sky-600">
+                  {viewUser.inProgressReports}
+                </p>
+                <p className="text-[10px] font-bold text-slate-500 uppercase mt-0.5">
+                  In Progress
+                </p>
               </div>
             </div>
 
@@ -551,7 +629,9 @@ export default function UserManagement() {
                   </div>
                   <div className="flex items-center gap-2.5 text-sm">
                     <Calendar className="h-4 w-4 text-slate-400" />
-                    <span className="text-slate-700">Joined {viewUser.joined}</span>
+                    <span className="text-slate-700">
+                      Joined {viewUser.joined}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -582,13 +662,21 @@ export default function UserManagement() {
                   const Icon = cfg.icon;
                   return (
                     <div key={a.id} className="relative flex items-start gap-4">
-                      <div className={`relative z-10 p-2.5 rounded-xl shrink-0 ${cfg.cls}`}>
+                      <div
+                        className={`relative z-10 p-2.5 rounded-xl shrink-0 ${cfg.cls}`}
+                      >
                         <Icon className="h-4 w-4" />
                       </div>
                       <div className="pt-1">
-                        <p className="text-sm font-bold text-slate-900">{a.title}</p>
-                        <p className="text-xs text-slate-500 mt-0.5">{a.description}</p>
-                        <p className="text-[10px] text-slate-400 mt-1">{a.time}</p>
+                        <p className="text-sm font-bold text-slate-900">
+                          {a.title}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          {a.description}
+                        </p>
+                        <p className="text-[10px] text-slate-400 mt-1">
+                          {a.time}
+                        </p>
                       </div>
                     </div>
                   );
@@ -626,39 +714,55 @@ export default function UserManagement() {
           <form onSubmit={handleSaveEdit} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1.5">Full Name</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1.5">
+                  Full Name
+                </label>
                 <input
                   type="text"
                   className={inputClass}
                   value={editUser.fullName}
-                  onChange={(e) => setEditUser({ ...editUser, fullName: e.target.value })}
+                  onChange={(e) =>
+                    setEditUser({ ...editUser, fullName: e.target.value })
+                  }
                 />
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1.5">Email</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1.5">
+                  Email
+                </label>
                 <input
                   type="email"
                   className={inputClass}
                   value={editUser.email}
-                  onChange={(e) => setEditUser({ ...editUser, email: e.target.value })}
+                  onChange={(e) =>
+                    setEditUser({ ...editUser, email: e.target.value })
+                  }
                 />
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1.5">Phone</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1.5">
+                  Phone
+                </label>
                 <input
                   type="tel"
                   className={inputClass}
                   value={editUser.phone}
-                  onChange={(e) => setEditUser({ ...editUser, phone: e.target.value })}
+                  onChange={(e) =>
+                    setEditUser({ ...editUser, phone: e.target.value })
+                  }
                 />
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1.5">District</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1.5">
+                  District
+                </label>
                 <input
                   type="text"
                   className={inputClass}
                   value={editUser.district}
-                  onChange={(e) => setEditUser({ ...editUser, district: e.target.value })}
+                  onChange={(e) =>
+                    setEditUser({ ...editUser, district: e.target.value })
+                  }
                 />
               </div>
             </div>
@@ -669,7 +773,9 @@ export default function UserManagement() {
       {/* Toggle Status Dialog */}
       <ConfirmDialog
         open={!!toggleUser}
-        title={toggleUser?.status === "Active" ? "Disable user?" : "Enable user?"}
+        title={
+          toggleUser?.status === "Active" ? "Disable user?" : "Enable user?"
+        }
         message={
           toggleUser?.status === "Active"
             ? `${toggleUser?.fullName} will no longer be able to log in or submit reports. You can re-enable them anytime.`
@@ -694,4 +800,3 @@ export default function UserManagement() {
     </AdminLayout>
   );
 }
-

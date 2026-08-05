@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+﻿import React, { useState, useEffect, useMemo } from "react";
 import {
   Search,
   Plus,
@@ -18,7 +18,7 @@ import {
   CheckCircle2,
   Gauge,
 } from "lucide-react";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { AdminLayout } from "@/layouts/admin/AdminLayout";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SkeletonTable } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -90,7 +90,7 @@ export default function CategoriesManagement() {
     e.preventDefault();
     if (!editCat) return;
     setCategories((prev) =>
-      prev.map((c) => (c.id === editCat.id ? { ...c, ...editCat } : c))
+      prev.map((c) => (c.id === editCat.id ? { ...c, ...editCat } : c)),
     );
     toast.success("Category updated successfully");
     setEditCat(null);
@@ -100,10 +100,12 @@ export default function CategoriesManagement() {
     if (!toggleCat) return;
     const newStatus = toggleCat.status === "Active" ? "Inactive" : "Active";
     setCategories((prev) =>
-      prev.map((c) => (c.id === toggleCat.id ? { ...c, status: newStatus } : c))
+      prev.map((c) =>
+        c.id === toggleCat.id ? { ...c, status: newStatus } : c,
+      ),
     );
     toast.success(
-      `Category ${toggleCat.name} ${newStatus === "Active" ? "activated" : "deactivated"}`
+      `Category ${toggleCat.name} ${newStatus === "Active" ? "activated" : "deactivated"}`,
     );
     setToggleCat(null);
   };
@@ -140,8 +142,12 @@ export default function CategoriesManagement() {
             <Tag className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-slate-900">{categories.length}</p>
-            <p className="text-xs font-semibold text-slate-500">Active Categories</p>
+            <p className="text-2xl font-bold text-slate-900">
+              {categories.length}
+            </p>
+            <p className="text-xs font-semibold text-slate-500">
+              Active Categories
+            </p>
           </div>
         </div>
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 flex items-center gap-4">
@@ -203,18 +209,26 @@ export default function CategoriesManagement() {
                   const Icon = iconMap[c.icon] || Tag;
                   const share = Math.round((c.reports / totalReports) * 100);
                   return (
-                    <tr key={c.id} className="hover:bg-slate-50/60 transition-colors">
+                    <tr
+                      key={c.id}
+                      className="hover:bg-slate-50/60 transition-colors"
+                    >
                       <td className="px-6 py-3.5">
                         <div className="flex items-center gap-3">
                           <div
                             className="p-2.5 rounded-xl"
-                            style={{ background: `${c.color}15`, color: c.color }}
+                            style={{
+                              background: `${c.color}15`,
+                              color: c.color,
+                            }}
                           >
                             <Icon className="h-4 w-4" />
                           </div>
                           <div>
                             <p className="font-bold text-slate-900">{c.name}</p>
-                            <p className="text-[10px] text-slate-400">ID: {c.id}</p>
+                            <p className="text-[10px] text-slate-400">
+                              ID: {c.id}
+                            </p>
                           </div>
                         </div>
                       </td>
@@ -228,7 +242,10 @@ export default function CategoriesManagement() {
                           <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                             <div
                               className="h-full rounded-full"
-                              style={{ width: `${share}%`, background: c.color }}
+                              style={{
+                                width: `${share}%`,
+                                background: c.color,
+                              }}
                             />
                           </div>
                           <span className="text-[10px] font-bold text-slate-500">
@@ -328,7 +345,9 @@ export default function CategoriesManagement() {
                 onChange={(e) => setForm({ ...form, icon: e.target.value })}
               >
                 {Object.keys(iconMap).map((k) => (
-                  <option key={k} value={k}>{k}</option>
+                  <option key={k} value={k}>
+                    {k}
+                  </option>
                 ))}
               </select>
             </div>
@@ -376,7 +395,9 @@ export default function CategoriesManagement() {
                 type="text"
                 className={inputClass}
                 value={editCat.name}
-                onChange={(e) => setEditCat({ ...editCat, name: e.target.value })}
+                onChange={(e) =>
+                  setEditCat({ ...editCat, name: e.target.value })
+                }
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -385,10 +406,14 @@ export default function CategoriesManagement() {
                 <select
                   className={inputClass + " appearance-none"}
                   value={editCat.icon}
-                  onChange={(e) => setEditCat({ ...editCat, icon: e.target.value })}
+                  onChange={(e) =>
+                    setEditCat({ ...editCat, icon: e.target.value })
+                  }
                 >
                   {Object.keys(iconMap).map((k) => (
-                    <option key={k} value={k}>{k}</option>
+                    <option key={k} value={k}>
+                      {k}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -398,7 +423,9 @@ export default function CategoriesManagement() {
                   type="color"
                   className="w-full h-[42px] bg-white border border-slate-200 rounded-xl p-1.5 cursor-pointer"
                   value={editCat.color}
-                  onChange={(e) => setEditCat({ ...editCat, color: e.target.value })}
+                  onChange={(e) =>
+                    setEditCat({ ...editCat, color: e.target.value })
+                  }
                 />
               </div>
             </div>
@@ -409,7 +436,11 @@ export default function CategoriesManagement() {
       {/* Toggle Category Dialog */}
       <ConfirmDialog
         open={!!toggleCat}
-        title={toggleCat?.status === "Active" ? "Disable category?" : "Enable category?"}
+        title={
+          toggleCat?.status === "Active"
+            ? "Disable category?"
+            : "Enable category?"
+        }
         message={
           toggleCat?.status === "Active"
             ? `Citizens will no longer be able to submit new reports under "${toggleCat?.name}". Existing reports remain unchanged.`
@@ -434,4 +465,3 @@ export default function CategoriesManagement() {
     </AdminLayout>
   );
 }
-
