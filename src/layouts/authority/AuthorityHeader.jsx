@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Menu, Bell, Search, ChevronDown, Building2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAuthority } from "@/context/AuthorityContext";
+import { useAuth } from "@/context/AuthContext";
 
 export function AuthorityHeader({ title, subtitle, onMenuToggle }) {
   const navigate = useNavigate();
-  const { authority } = useAuthority();
+  const { user } = useAuth();
+  const authorityName = user?.authority?.name || user?.fullName || "Authority";
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const searchRef = useRef(null);
@@ -101,16 +102,16 @@ export function AuthorityHeader({ title, subtitle, onMenuToggle }) {
         {/* Authority Badge */}
         <div className="flex items-center gap-2 cursor-pointer p-1 hover:bg-slate-50 rounded-xl transition-colors">
           <div
-            className={`h-8 w-8 rounded-full bg-gradient-to-br ${authority?.color || "from-indigo-600 to-violet-600"} text-white flex items-center justify-center font-bold text-xs ring-2 ring-indigo-100`}
+            className={`h-8 w-8 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center font-bold text-xs ring-2 ring-indigo-100`}
           >
             <Building2 className="h-4 w-4" />
           </div>
           <div className="hidden lg:block text-left">
             <p className="text-xs font-bold text-slate-900 leading-tight">
-              {authority?.authorityName || "Authority"}
+              {authorityName}
             </p>
             <p className="text-[10px] text-slate-400 leading-tight">
-              {authority?.authorityType || "System"}
+              {user?.email || "Authority account"}
             </p>
           </div>
           <ChevronDown className="hidden lg:block h-3.5 w-3.5 text-slate-400" />

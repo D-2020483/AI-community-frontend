@@ -7,23 +7,19 @@ import {
   UserX,
   UserCheck,
   Trash2,
-  Download,
   FileSpreadsheet,
   FileText,
-  Plus,
   Mail,
   Phone,
   MapPin,
   Calendar,
   ClipboardList,
   CheckCircle2,
-  Clock,
   FilePlus2,
   BellRing,
   Reply,
   UserRound,
   Building2,
-  Activity,
 } from "lucide-react";
 import { AdminLayout } from "@/layouts/admin/AdminLayout";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -32,17 +28,29 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StatusBadge } from "@/components/ui/Badge";
-import { adminUsers } from "@/data/adminData";
+import { apiRequest, getErrorMessage } from "@/lib/api";
+import { mapCitizenFromApi } from "@/lib/adminMappers";
 import { toast } from "react-hot-toast";
 
 const PAGE_SIZE = 6;
 
-function UserAvatar({ user }) {
-  const initials = user.fullName
+function getInitials(name) {
+  return (name || "?")
     .split(" ")
+    .filter(Boolean)
     .map((n) => n[0])
     .slice(0, 2)
-    .join("");
+    .join("")
+    .toUpperCase();
+}
+
+function shortId(id) {
+  if (!id) return "—";
+  return String(id).slice(0, 8);
+}
+
+function UserAvatar({ user }) {
+  const initials = getInitials(user.fullName);
   return (
     <div
       className={`h-9 w-9 rounded-full flex items-center justify-center font-bold text-xs ring-2 ${
@@ -80,43 +88,20 @@ const activityConfig = {
   resolved: { icon: CheckCircle2, cls: "bg-emerald-50 text-emerald-600" },
 };
 
-const mockTimeline = [
-  {
-    id: 1,
-    action: "submitted",
-    title: "Submitted a report",
-    description: "Pothole on Oak Street (RPT-1042)",
-    time: "Today, 10:24 AM",
-  },
-  {
-    id: 2,
-    action: "notification",
-    title: "Received notification",
-    description: "Your report RPT-1042 was approved",
-    time: "Today, 10:30 AM",
-  },
-  {
-    id: 3,
-    action: "responded",
-    title: "Authority responded",
-    description: "Water Authority responded to RPT-1036",
-    time: "Yesterday, 4:45 PM",
-  },
-  {
-    id: 4,
-    action: "updated",
-    title: "Updated profile",
-    description: "Changed phone number",
-    time: "2 days ago",
-  },
-  {
-    id: 5,
-    action: "resolved",
-    title: "Report resolved",
-    description: "RPT-1039 was marked as resolved",
-    time: "3 days ago",
-  },
-];
+function matchesDateFilter(createdAt, filterDate) {
+  if (filterDate === "All Dates" || !createdAt) return true;
+  const created = new Date(createdAt).getTime();
+  if (Number.isNaN(created)) return true;
+  const now = Date.now();
+  const day = 86_400_000;
+  if (filterDate === "Last 7 days") return now - created <= 7 * day;
+  if (filterDate === "Last 30 days") return now - created <= 30 * day;
+  if (filterDate === "Last 90 days") return now - created <= 90 * day;
+  if (filterDate === "This year") {
+    return new Date(createdAt).getFullYear() === new Date().getFullYear();
+  }
+  return true;
+}
 
 export default function UserManagement() {
   const [loading, setLoading] = useState(true);
@@ -129,17 +114,47 @@ export default function UserManagement() {
   const [editUser, setEditUser] = useState(null);
   const [toggleUser, setToggleUser] = useState(null);
   const [deleteUser, setDeleteUser] = useState(null);
-  const [users, setUsers] = useState(adminUsers);
+  const [users, setUsers] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const [viewLoading, setViewLoading] = useState(false);
+
+  const applyUpdatedUser = (updated) => {
+    if (!updated) return;
+    setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+    setViewUser((prev) => (prev?.id === updated.id ? updated : prev));
+    setEditUser((prev) => (prev?.id === updated.id ? { ...updated } : prev));
+  };
+
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      const data = await apiRequest("/admin/users");
+      const list = data.data?.users || data.users || [];
+      setUsers(Array.isArray(list) ? list.map(mapCitizenFromApi) : []);
+    } catch (error) {
+      toast.error(
+        getErrorMessage(error.data, error.message || "Failed to load citizens"),
+      );
+      setUsers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 600);
-    return () => clearTimeout(t);
+    loadUsers();
   }, []);
 
-  const districts = useMemo(
-    () => ["All Districts", ...new Set(users.map((u) => u.district))],
-    [users],
-  );
+  const districts = useMemo(() => {
+    const values = [
+      ...new Set(
+        users
+          .map((u) => u.district)
+          .filter((d) => d && d !== "—"),
+      ),
+    ];
+    return ["All Districts", ...values];
+  }, [users]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -148,12 +163,13 @@ export default function UserManagement() {
         !q ||
         u.fullName.toLowerCase().includes(q) ||
         u.email.toLowerCase().includes(q) ||
+        u.phone.toLowerCase().includes(q) ||
         u.district.toLowerCase().includes(q);
       const matchStatus =
         filterStatus === "All Status" || u.status === filterStatus;
       const matchDistrict =
         filterDistrict === "All Districts" || u.district === filterDistrict;
-      const matchDate = filterDate === "All Dates" || true;
+      const matchDate = matchesDateFilter(u.createdAt, filterDate);
       return matchQ && matchStatus && matchDistrict && matchDate;
     });
   }, [users, query, filterStatus, filterDistrict, filterDate]);
@@ -166,7 +182,7 @@ export default function UserManagement() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [query, filterStatus, filterDistrict]);
+  }, [query, filterStatus, filterDistrict, filterDate]);
 
   const handleExportCSV = () => {
     const header = [
@@ -201,64 +217,132 @@ export default function UserManagement() {
   };
 
   const handleExportPDF = () => {
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>CivicLink Users</title>
+    const printWindow = window.open("", "_blank", "noopener,noreferrer");
+    if (!printWindow) {
+      toast.error("Please allow pop-ups to export a PDF.");
+      return;
+    }
+
+    const rows = filtered
+      .map(
+        (u) =>
+          `<tr><td>${u.fullName}</td><td>${u.email}</td><td>${u.phone}</td><td>${u.district}</td><td>${u.joined}</td><td>${u.reports}</td><td>${u.status}</td></tr>`,
+      )
+      .join("");
+
+    printWindow.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>CivicLink Citizens</title>
 <style>
-  body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#f1f5f9;padding:32px;color:#1e293b}
-  .page{max-width:900px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(15,23,42,.08)}
-  .hero{background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:28px 32px;color:#fff}
-  .hero h1{font-size:24px;font-weight:800;margin-top:6px}
-  .body{padding:32px}
-  table{width:100%;border-collapse:collapse;font-size:13px}
-  th{text-align:left;padding:10px 12px;background:#f8fafc;text-transform:uppercase;font-size:10px;color:#94a3b8;letter-spacing:.06em}
-  td{padding:10px 12px;border-top:1px solid #f1f5f9}
-</style></head><body><div class="page">
-  <div class="hero"><div>Civic Link — User Directory</div><h1>${filtered.length} Users</h1></div>
-  <div class="body"><table><thead><tr><th>Name</th><th>Email</th><th>District</th><th>Joined</th><th>Reports</th><th>Status</th></tr></thead>
-  <tbody>${filtered
-    .map(
-      (u) =>
-        `<tr><td>${u.fullName}</td><td>${u.email}</td><td>${u.district}</td><td>${u.joined}</td><td>${u.reports}</td><td>${u.status}</td></tr>`,
-    )
-    .join("")}</tbody></table></div>
-</div></body></html>`;
-    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "civiclink-users.html";
-    link.click();
-    URL.revokeObjectURL(url);
-    toast.success(`${filtered.length} users exported to PDF`);
+  body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#fff;color:#1e293b;padding:24px}
+  h1{font-size:22px;margin:0 0 6px}
+  p{color:#64748b;font-size:12px;margin:0 0 18px}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th{text-align:left;padding:8px 10px;background:#f8fafc;text-transform:uppercase;font-size:10px;color:#94a3b8}
+  td{padding:8px 10px;border-top:1px solid #e2e8f0}
+  @media print { body { padding: 0; } }
+</style></head><body>
+  <h1>Civic Link — Citizens</h1>
+  <p>${filtered.length} registered citizen${filtered.length === 1 ? "" : "s"} · ${new Date().toLocaleDateString()}</p>
+  <table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>District</th><th>Joined</th><th>Reports</th><th>Status</th></tr></thead>
+  <tbody>${rows}</tbody></table>
+</body></html>`);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    toast.success("Use Save as PDF in the print dialog.");
   };
 
-  const handleToggleStatus = () => {
-    if (!toggleUser) return;
-    const newStatus = toggleUser.status === "Active" ? "Inactive" : "Active";
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.id === toggleUser.id ? { ...u, status: newStatus } : u,
-      ),
-    );
-    toast.success(
-      `${toggleUser.fullName} ${newStatus === "Active" ? "enabled" : "disabled"} successfully`,
-    );
-    setToggleUser(null);
+  const handleToggleStatus = async () => {
+    if (!toggleUser || busy) return;
+    setBusy(true);
+    try {
+      const data = await apiRequest(`/admin/users/${toggleUser.id}/status`, {
+        method: "PATCH",
+      });
+      const updated = mapCitizenFromApi(data.data.user);
+      applyUpdatedUser(updated);
+      toast.success(
+        `${updated.fullName} ${updated.status === "Active" ? "enabled" : "deactivated"} successfully`,
+      );
+      setToggleUser(null);
+    } catch (error) {
+      toast.error(
+        getErrorMessage(error.data, error.message || "Failed to update status"),
+      );
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const handleDelete = () => {
-    if (!deleteUser) return;
-    setUsers((prev) => prev.filter((u) => u.id !== deleteUser.id));
-    toast.success(`${deleteUser.fullName} deleted from the system`);
-    setDeleteUser(null);
+  const handleDelete = async () => {
+    if (!deleteUser || busy) return;
+    setBusy(true);
+    try {
+      await apiRequest(`/admin/users/${deleteUser.id}`, { method: "DELETE" });
+      setUsers((prev) => prev.filter((u) => u.id !== deleteUser.id));
+      if (viewUser?.id === deleteUser.id) setViewUser(null);
+      if (editUser?.id === deleteUser.id) setEditUser(null);
+      toast.success(`${deleteUser.fullName} deleted from the system`);
+      setDeleteUser(null);
+    } catch (error) {
+      toast.error(
+        getErrorMessage(error.data, error.message || "Failed to delete user"),
+      );
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const handleSaveEdit = (e) => {
+  const openViewUser = async (user) => {
+    setViewUser(user);
+    setViewLoading(true);
+    try {
+      const data = await apiRequest(`/admin/users/${user.id}`);
+      const detailed = mapCitizenFromApi(data.data?.user || data.user);
+      if (detailed) applyUpdatedUser(detailed);
+    } catch (error) {
+      toast.error(
+        getErrorMessage(error.data, error.message || "Failed to load user details"),
+      );
+    } finally {
+      setViewLoading(false);
+    }
+  };
+
+  const openEditUser = (user) => {
+    setEditUser({ ...user });
+  };
+
+  const handleSaveEdit = async (e) => {
     e.preventDefault();
-    setUsers((prev) =>
-      prev.map((u) => (u.id === editUser.id ? { ...u, ...editUser } : u)),
-    );
-    toast.success("User profile updated successfully");
-    setEditUser(null);
+    if (!editUser || busy) return;
+    if (!editUser.fullName?.trim() || !editUser.email?.trim()) {
+      toast.error("Full name and email are required");
+      return;
+    }
+    setBusy(true);
+    try {
+      const data = await apiRequest(`/admin/users/${editUser.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          fullName: editUser.fullName.trim(),
+          email: editUser.email.trim(),
+          phone: editUser.phone === "—" ? "" : editUser.phone.trim(),
+          district: editUser.district === "—" ? "" : editUser.district.trim(),
+          location: editUser.location === "—" ? "" : editUser.location.trim(),
+        }),
+      });
+      const updated = mapCitizenFromApi(data.data.user);
+      applyUpdatedUser(updated);
+      toast.success("User profile updated successfully");
+      setEditUser(null);
+    } catch (error) {
+      toast.error(
+        getErrorMessage(error.data, error.message || "Failed to update user"),
+      );
+    } finally {
+      setBusy(false);
+    }
   };
 
   const selectClass =
@@ -299,7 +383,7 @@ export default function UserManagement() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by name, email, or district..."
+            placeholder="Search by name, email, phone, or district..."
             className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/15 shadow-sm transition-all"
           />
         </div>
@@ -382,7 +466,7 @@ export default function UserManagement() {
                             {u.fullName}
                           </p>
                           <p className="text-[10px] text-slate-400">
-                            ID: {u.id}
+                            ID: {shortId(u.id)}
                           </p>
                         </div>
                       </div>
@@ -419,14 +503,14 @@ export default function UserManagement() {
                       <div className="flex items-center justify-end gap-1">
                         <button
                           title="View Profile"
-                          onClick={() => setViewUser(u)}
+                          onClick={() => openViewUser(u)}
                           className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
                         >
                           <Eye className="h-4 w-4" />
                         </button>
                         <button
                           title="Edit User"
-                          onClick={() => setEditUser(u)}
+                          onClick={() => openEditUser(u)}
                           className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                         >
                           <Pencil className="h-4 w-4" />
@@ -466,8 +550,12 @@ export default function UserManagement() {
           {filtered.length === 0 && (
             <EmptyState
               icon={Search}
-              title="No users found"
-              description="Try adjusting your search or filters to find what you're looking for."
+              title={users.length === 0 ? "No citizens yet" : "No users found"}
+              description={
+                users.length === 0
+                  ? "Registered citizens will appear here after they create an account."
+                  : "Try adjusting your search or filters to find what you're looking for."
+              }
             />
           )}
 
@@ -538,7 +626,7 @@ export default function UserManagement() {
           <>
             <button
               onClick={() => {
-                setEditUser(viewUser);
+                openEditUser(viewUser);
                 setViewUser(null);
               }}
               className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-indigo-600 border border-indigo-200 rounded-xl hover:bg-indigo-50 transition-colors cursor-pointer"
@@ -556,14 +644,13 @@ export default function UserManagement() {
       >
         {viewUser && (
           <div className="space-y-6">
+            {viewLoading && (
+              <p className="text-xs text-slate-400">Refreshing latest details…</p>
+            )}
             {/* Profile Header */}
             <div className="flex items-center gap-4">
               <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center text-xl font-bold shadow-lg shadow-indigo-600/20">
-                {viewUser.fullName
-                  .split(" ")
-                  .map((n) => n[0])
-                  .slice(0, 2)
-                  .join("")}
+                {getInitials(viewUser.fullName)}
               </div>
               <div>
                 <h4 className="text-lg font-bold text-slate-900">
@@ -657,8 +744,11 @@ export default function UserManagement() {
               </h5>
               <div className="relative space-y-5">
                 <div className="absolute left-[19px] top-2 bottom-2 w-px bg-slate-100" />
-                {mockTimeline.map((a) => {
-                  const cfg = activityConfig[a.action];
+                {(viewUser.recentActivity?.length
+                  ? viewUser.recentActivity
+                  : []
+                ).map((a) => {
+                  const cfg = activityConfig[a.action] || activityConfig.submitted;
                   const Icon = cfg.icon;
                   return (
                     <div key={a.id} className="relative flex items-start gap-4">
@@ -681,6 +771,12 @@ export default function UserManagement() {
                     </div>
                   );
                 })}
+                {(!viewUser.recentActivity ||
+                  viewUser.recentActivity.length === 0) && (
+                  <p className="text-xs text-slate-400 pl-12">
+                    No report activity yet for this citizen.
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -696,22 +792,25 @@ export default function UserManagement() {
         footer={
           <>
             <button
+              type="button"
               onClick={() => setEditUser(null)}
               className="px-4 py-2 text-xs font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
-              onClick={handleSaveEdit}
-              className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors cursor-pointer"
+              type="submit"
+              form="edit-user-form"
+              disabled={busy}
+              className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors cursor-pointer disabled:opacity-50"
             >
-              Save Changes
+              {busy ? "Saving..." : "Save Changes"}
             </button>
           </>
         }
       >
         {editUser && (
-          <form onSubmit={handleSaveEdit} className="space-y-4">
+          <form id="edit-user-form" onSubmit={handleSaveEdit} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-xs font-bold text-slate-700 block mb-1.5">
@@ -719,6 +818,7 @@ export default function UserManagement() {
                 </label>
                 <input
                   type="text"
+                  required
                   className={inputClass}
                   value={editUser.fullName}
                   onChange={(e) =>
@@ -732,6 +832,7 @@ export default function UserManagement() {
                 </label>
                 <input
                   type="email"
+                  required
                   className={inputClass}
                   value={editUser.email}
                   onChange={(e) =>
@@ -765,6 +866,19 @@ export default function UserManagement() {
                   }
                 />
               </div>
+              <div className="sm:col-span-2">
+                <label className="text-xs font-bold text-slate-700 block mb-1.5">
+                  Location
+                </label>
+                <input
+                  type="text"
+                  className={inputClass}
+                  value={editUser.location}
+                  onChange={(e) =>
+                    setEditUser({ ...editUser, location: e.target.value })
+                  }
+                />
+              </div>
             </div>
           </form>
         )}
@@ -774,28 +888,36 @@ export default function UserManagement() {
       <ConfirmDialog
         open={!!toggleUser}
         title={
-          toggleUser?.status === "Active" ? "Disable user?" : "Enable user?"
+          toggleUser?.status === "Active" ? "Deactivate user?" : "Enable user?"
         }
         message={
           toggleUser?.status === "Active"
             ? `${toggleUser?.fullName} will no longer be able to log in or submit reports. You can re-enable them anytime.`
             : `${toggleUser?.fullName} will regain access to the platform and be able to submit reports again.`
         }
-        confirmLabel={toggleUser?.status === "Active" ? "Disable" : "Enable"}
+        confirmLabel={
+          busy
+            ? "Please wait..."
+            : toggleUser?.status === "Active"
+              ? "Deactivate"
+              : "Enable"
+        }
         tone={toggleUser?.status === "Active" ? "danger" : "primary"}
         onConfirm={handleToggleStatus}
         onCancel={() => setToggleUser(null)}
+        loading={busy}
       />
 
       {/* Delete Dialog */}
       <ConfirmDialog
         open={!!deleteUser}
         title="Delete user?"
-        message={`This will permanently remove ${deleteUser?.fullName} from the system, along with all associated data. This action cannot be undone.`}
+        message={`This will permanently remove ${deleteUser?.fullName} from the system. Their submitted reports stay in the system without a linked citizen. This action cannot be undone.`}
         confirmLabel="Delete"
         tone="danger"
         onConfirm={handleDelete}
         onCancel={() => setDeleteUser(null)}
+        loading={busy}
       />
     </AdminLayout>
   );

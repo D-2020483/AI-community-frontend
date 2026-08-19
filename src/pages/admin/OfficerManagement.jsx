@@ -23,16 +23,15 @@ import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StatusBadge } from "@/components/ui/Badge";
 import { officersData, authoritiesData } from "@/data/adminData";
-import {
-  buildOfficerEmail,
-  generateTemporaryPassword,
-} from "@/lib/emailTemplate";
+import { buildOfficerEmail } from "@/lib/emailTemplate";
+import { apiRequest, getErrorMessage } from "@/lib/api";
+import { mapAuthorityOption, mapOfficerFromApi } from "@/lib/adminMappers";
 import { toast } from "react-hot-toast";
 
 const PAGE_SIZE = 6;
 
 function OfficerAvatar({ officer }) {
-  const initials = `${officer.firstName[0]}${officer.lastName[0]}`;
+  const initials = `${officer.firstName?.[0] || ""}${officer.lastName?.[0] || "O"}`;
   return officer.avatar ? (
     <img
       src={officer.avatar}
@@ -76,13 +75,15 @@ export default function OfficerManagement() {
   const [query, setQuery] = useState("");
   const [filterAuthority, setFilterAuthority] = useState("All Authorities");
   const [filterStatus, setFilterStatus] = useState("All Status");
-  const [officers, setOfficers] = useState(officersData);
+  const [officers, setOfficers] = useState([]);
+  const [authorityOptions, setAuthorityOptions] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
   const [editOfficer, setEditOfficer] = useState(null);
   const [toggleOfficer, setToggleOfficer] = useState(null);
   const [deleteOfficer, setDeleteOfficer] = useState(null);
   const [resetOfficer, setResetOfficer] = useState(null);
+  const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -90,19 +91,56 @@ export default function OfficerManagement() {
     phone: "",
     position: "",
     department: "",
-    authority: authoritiesData[0].name,
-    authorityId: authoritiesData[0].id,
+    authority: "",
+    authorityId: "",
     photo: null,
   });
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 600);
-    return () => clearTimeout(t);
+    let cancelled = false;
+
+    const loadData = async () => {
+      try {
+        const [officersRes, authoritiesRes] = await Promise.all([
+          apiRequest("/admin/officers"),
+          apiRequest("/admin/authorities"),
+        ]);
+
+        if (cancelled) return;
+
+        const options = authoritiesRes.data.authorities.map(mapAuthorityOption);
+        setAuthorityOptions(options);
+        setOfficers(officersRes.data.officers.map(mapOfficerFromApi));
+
+        if (options[0]) {
+          setForm((prev) => ({
+            ...prev,
+            authority: options[0].name,
+            authorityId: options[0].id,
+          }));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          toast.error(getErrorMessage(error.data, "Failed to load officers"));
+          setOfficers(officersData);
+          setAuthorityOptions(
+            authoritiesData.map((a) => ({ id: a.id, name: a.name })),
+          );
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    loadData();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const authorities = useMemo(
-    () => ["All Authorities", ...authoritiesData.map((a) => a.name)],
-    [],
+    () => ["All Authorities", ...authorityOptions.map((a) => a.name)],
+    [authorityOptions],
   );
 
   const filtered = useMemo(() => {
@@ -132,54 +170,64 @@ export default function OfficerManagement() {
     setCurrentPage(1);
   }, [query, filterAuthority, filterStatus]);
 
-  const handleCreate = (e) => {
+  const handleCreate = async (e) => {
     e.preventDefault();
     if (!form.firstName || !form.lastName || !form.email) {
       toast.error("First name, last name, and email are required");
       return;
     }
-    const tempPassword = generateTemporaryPassword();
-    const fullName = `${form.firstName} ${form.lastName}`;
-    const newOfficer = {
-      id: `off-${Date.now()}`,
-      firstName: form.firstName,
-      lastName: form.lastName,
-      email: form.email,
-      phone: form.phone || "—",
-      position: form.position || "Officer",
-      department: form.department || "Field Operations",
-      authority: form.authority,
-      authorityId: form.authorityId,
-      activeReports: 0,
-      completedReports: 0,
-      availability: "Available",
-      avatar: form.photo,
-      status: "Active",
-    };
-    setOfficers((prev) => [newOfficer, ...prev]);
-    setCreateOpen(false);
-    setForm({
-      firstName: "",
-      lastName: "",
-      email: "",
-      phone: "",
-      position: "",
-      department: "",
-      authority: authoritiesData[0].name,
-      authorityId: authoritiesData[0].id,
-      photo: null,
-    });
+    if (!form.authorityId) {
+      toast.error("Select an authority before creating an officer");
+      return;
+    }
 
-    const emailHtml = buildOfficerEmail({
-      name: fullName,
-      email: form.email,
-      tempPassword,
-      authority: form.authority,
-    });
-    window.open("", "_blank").document.write(emailHtml);
-    toast.success(`Officer created. Credentials sent to ${form.email}`, {
-      duration: 5000,
-    });
+    const fullName = `${form.firstName} ${form.lastName}`;
+    const createdEmail = form.email;
+    const createdAuthority = form.authority;
+
+    try {
+      const data = await apiRequest("/admin/officers", {
+        method: "POST",
+        body: JSON.stringify({
+          firstName: form.firstName,
+          lastName: form.lastName,
+          email: form.email,
+          phone: form.phone,
+          position: form.position,
+          department: form.department,
+          authorityId: form.authorityId,
+        }),
+      });
+
+      const { officer, tempPassword, inviteUrl, emailStatus } = data.data;
+      setOfficers((prev) => [mapOfficerFromApi(officer), ...prev]);
+      setCreateOpen(false);
+      setForm({
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        position: "",
+        department: "",
+        authority: authorityOptions[0]?.name || "",
+        authorityId: authorityOptions[0]?.id || "",
+        photo: null,
+      });
+
+      if (emailStatus?.sent) {
+        toast.success(
+          `Officer created. A login link and temporary password were sent to ${createdEmail}`,
+          { duration: 6000 },
+        );
+      } else {
+        toast.warning(
+          `Officer created successfully, but email delivery is not configured. Use the backend response credentials for ${createdEmail}`,
+          { duration: 8000 },
+        );
+      }
+    } catch (error) {
+      toast.error(getErrorMessage(error.data, error.message));
+    }
   };
 
   const handlePhotoUpload = (e) => {
@@ -190,51 +238,97 @@ export default function OfficerManagement() {
     reader.readAsDataURL(file);
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
-    if (!editOfficer) return;
-    setOfficers((prev) =>
-      prev.map((o) => (o.id === editOfficer.id ? { ...o, ...editOfficer } : o)),
-    );
-    toast.success("Officer updated successfully");
-    setEditOfficer(null);
+    if (!editOfficer || busy) return;
+    setBusy(true);
+    try {
+      const data = await apiRequest(`/admin/officers/${editOfficer.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          firstName: editOfficer.firstName,
+          lastName: editOfficer.lastName,
+          email: editOfficer.email,
+          phone: editOfficer.phone === "—" ? "" : editOfficer.phone,
+          position: editOfficer.position,
+          department: editOfficer.department,
+          authorityId: editOfficer.authorityId || undefined,
+        }),
+      });
+      const updated = mapOfficerFromApi(data.data.officer);
+      setOfficers((prev) =>
+        prev.map((o) => (o.id === updated.id ? updated : o)),
+      );
+      toast.success("Officer updated successfully");
+      setEditOfficer(null);
+    } catch (error) {
+      toast.error(getErrorMessage(error.data, error.message || "Failed to update officer"));
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const handleToggle = () => {
-    if (!toggleOfficer) return;
-    const newStatus = toggleOfficer.status === "Active" ? "Inactive" : "Active";
-    setOfficers((prev) =>
-      prev.map((o) =>
-        o.id === toggleOfficer.id ? { ...o, status: newStatus } : o,
-      ),
-    );
-    toast.success(
-      `${toggleOfficer.firstName} ${toggleOfficer.lastName} ${newStatus === "Active" ? "activated" : "deactivated"}`,
-    );
-    setToggleOfficer(null);
+  const handleToggle = async () => {
+    if (!toggleOfficer || busy) return;
+    setBusy(true);
+    try {
+      const data = await apiRequest(
+        `/admin/officers/${toggleOfficer.id}/status`,
+        { method: "PATCH" },
+      );
+      const updated = mapOfficerFromApi(data.data.officer);
+      setOfficers((prev) =>
+        prev.map((o) => (o.id === updated.id ? updated : o)),
+      );
+      toast.success(
+        `${updated.firstName} ${updated.lastName} ${updated.status === "Active" ? "activated" : "deactivated"}`,
+      );
+      setToggleOfficer(null);
+    } catch (error) {
+      toast.error(getErrorMessage(error.data, error.message || "Failed to update status"));
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const handleDelete = () => {
-    if (!deleteOfficer) return;
-    setOfficers((prev) => prev.filter((o) => o.id !== deleteOfficer.id));
-    toast.success("Officer removed from the system");
-    setDeleteOfficer(null);
+  const handleDelete = async () => {
+    if (!deleteOfficer || busy) return;
+    setBusy(true);
+    try {
+      await apiRequest(`/admin/officers/${deleteOfficer.id}`, {
+        method: "DELETE",
+      });
+      setOfficers((prev) => prev.filter((o) => o.id !== deleteOfficer.id));
+      toast.success("Officer removed from the system");
+      setDeleteOfficer(null);
+    } catch (error) {
+      toast.error(getErrorMessage(error.data, error.message || "Failed to delete officer"));
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
     if (!resetOfficer) return;
-    const tempPassword = generateTemporaryPassword();
-    const emailHtml = buildOfficerEmail({
-      name: `${resetOfficer.firstName} ${resetOfficer.lastName}`,
-      email: resetOfficer.email,
-      tempPassword,
-      authority: resetOfficer.authority,
-    });
-    window.open("", "_blank").document.write(emailHtml);
-    toast.success(
-      `Password reset. New credentials sent to ${resetOfficer.email}`,
-    );
-    setResetOfficer(null);
+
+    try {
+      const data = await apiRequest(
+        `/admin/officers/${resetOfficer.id}/reset-password`,
+        { method: "POST" },
+      );
+      const { tempPassword, email } = data.data;
+      const emailHtml = buildOfficerEmail({
+        name: `${resetOfficer.firstName} ${resetOfficer.lastName}`,
+        email,
+        tempPassword,
+        authority: resetOfficer.authority,
+      });
+      window.open("", "_blank").document.write(emailHtml);
+      toast.success(`Password reset. New credentials prepared for ${email}`);
+      setResetOfficer(null);
+    } catch (error) {
+      toast.error(getErrorMessage(error.data, error.message));
+    }
   };
 
   const selectClass =
@@ -370,7 +464,7 @@ export default function OfficerManagement() {
                       <div className="flex items-center justify-end gap-1">
                         <button
                           title="Edit"
-                          onClick={() => setEditOfficer(o)}
+                          onClick={() => setEditOfficer({ ...o })}
                           className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                         >
                           <Pencil className="h-4 w-4" />
@@ -566,7 +660,7 @@ export default function OfficerManagement() {
                   className={inputClass + " appearance-none"}
                   value={form.authority}
                   onChange={(e) => {
-                    const auth = authoritiesData.find(
+                    const auth = authorityOptions.find(
                       (a) => a.name === e.target.value,
                     );
                     setForm({
@@ -576,7 +670,7 @@ export default function OfficerManagement() {
                     });
                   }}
                 >
-                  {authoritiesData.map((a) => (
+                  {authorityOptions.map((a) => (
                     <option key={a.id} value={a.name}>
                       {a.name}
                     </option>
@@ -642,9 +736,10 @@ export default function OfficerManagement() {
             </button>
             <button
               onClick={handleSave}
-              className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors cursor-pointer"
+              disabled={busy}
+              className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors cursor-pointer disabled:opacity-50"
             >
-              Save Changes
+              {busy ? "Saving..." : "Save Changes"}
             </button>
           </>
         }
@@ -743,11 +838,16 @@ export default function OfficerManagement() {
             : `${toggleOfficer?.firstName} ${toggleOfficer?.lastName} will be re-activated and can receive reports again.`
         }
         confirmLabel={
-          toggleOfficer?.status === "Active" ? "Deactivate" : "Activate"
+          busy
+            ? "Please wait..."
+            : toggleOfficer?.status === "Active"
+              ? "Deactivate"
+              : "Activate"
         }
         tone={toggleOfficer?.status === "Active" ? "danger" : "primary"}
         onConfirm={handleToggle}
         onCancel={() => setToggleOfficer(null)}
+        loading={busy}
       />
 
       {/* Delete Officer Dialog */}
@@ -759,6 +859,7 @@ export default function OfficerManagement() {
         tone="danger"
         onConfirm={handleDelete}
         onCancel={() => setDeleteOfficer(null)}
+        loading={busy}
       />
 
       {/* Reset Password Dialog */}

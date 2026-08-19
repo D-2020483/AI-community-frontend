@@ -16,8 +16,9 @@ import {
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-
-const ROLE = "citizen";
+import { useMyReports } from "@/hooks/useMyReports";
+import { unreadNotificationCount } from "@/lib/citizenNotifications";
+import { unseenReportCount, REPORT_SEEN_KEYS } from "@/lib/reportBadges";
 
 const navSections = [
   {
@@ -25,14 +26,14 @@ const navSections = [
     items: [
       { name: "Dashboard", icon: LayoutGrid, path: "/dashboard" },
       { name: "Report issue", icon: Plus, path: "/report-issue" },
-      { name: "My reports", icon: FileText, path: "/reports" },
-      { name: "Track report", icon: Activity, path: "/track-report/RPT-1042" },
+      { name: "My reports", icon: FileText, path: "/reports", badgeKey: "reports" },
+      { name: "Track report", icon: Activity, path: "/track-report" },
     ],
   },
   {
     label: "Account",
     items: [
-      { name: "Notifications", icon: Bell, path: "/notifications", badge: 3 },
+      { name: "Notifications", icon: Bell, path: "/notifications", badgeKey: "notifications" },
       { name: "Profile", icon: User, path: "/profile" },
     ],
   },
@@ -41,15 +42,24 @@ const navSections = [
 export function ResponsiveSidebar({ isOpen, onClose }) {
   const navigate = useNavigate();
   const location = useLocation();
-const { setRole } = useAuth();
+  const { logout, user } = useAuth();
+  const { reports } = useMyReports();
+  const unreadCount = location.pathname.startsWith("/notifications")
+    ? 0
+    : unreadNotificationCount(reports);
+  const newReports = location.pathname.startsWith("/reports")
+    ? 0
+    : unseenReportCount(reports, REPORT_SEEN_KEYS.citizen);
+  const citizenName = user?.fullName || "Citizen User";
+  const citizenInitial = citizenName.slice(0, 1).toUpperCase();
 
   const isActive = (path) => {
     if (path === "/dashboard") return location.pathname === path;
     return location.pathname.startsWith(path);
   };
 
-  const handleLogout = () => {
-    setRole(ROLE);
+  const handleLogout = async () => {
+    await logout();
     navigate("/login");
   };
 
@@ -103,9 +113,15 @@ const { setRole } = useAuth();
                 </span>
               </div>
               <div className="space-y-0.5">
-                {section.items.map((item) => {
+                    {section.items.map((item) => {
                   const Icon = item.icon;
                   const active = isActive(item.path);
+                  const badge =
+                    item.badgeKey === "notifications"
+                      ? unreadCount
+                      : item.badgeKey === "reports"
+                        ? newReports
+                        : 0;
                   return (
                     <button
                       key={item.name}
@@ -120,20 +136,20 @@ const { setRole } = useAuth();
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <Icon
-                          className={`h-4 w-4 shrink-0 transition-colors ${
-                            active
-                              ? "text-indigo-600"
-                              : "text-slate-400 group-hover:text-slate-600"
-                          }`}
-                        />
+                        <span className="relative shrink-0">
+                          <Icon
+                            className={`h-4 w-4 transition-colors ${
+                              active
+                                ? "text-indigo-600"
+                                : "text-slate-400 group-hover:text-slate-600"
+                            }`}
+                          />
+                          {badge > 0 && (
+                            <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-blue-500 ring-2 ring-white" />
+                          )}
+                        </span>
                         <span className="truncate">{item.name}</span>
                       </div>
-                      {item.badge && (
-                        <span className="bg-indigo-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0">
-                          {item.badge}
-                        </span>
-                      )}
                     </button>
                   );
                 })}
@@ -148,14 +164,14 @@ const { setRole } = useAuth();
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-full bg-gradient-to-br from-sky-100 to-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs ring-2 ring-sky-100">
-              C
+              {citizenInitial}
             </div>
             <div className="flex flex-col min-w-0">
               <span className="text-xs font-bold text-slate-900 truncate">
-                Citizen User
+                {citizenName}
               </span>
               <span className="text-[10px] text-slate-400 truncate">
-                North District
+                {user?.district || "North District"}
               </span>
             </div>
           </div>

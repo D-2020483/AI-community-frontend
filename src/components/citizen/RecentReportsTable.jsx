@@ -9,13 +9,12 @@ import {
   Activity,
   Download,
 } from "lucide-react";
-import { getReportById } from "@/data/reportsData";
 import { downloadReport } from "@/lib/reportDownload";
 
-export function RecentReportsTable({ reports }) {
+export function RecentReportsTable({ reports = [], loading = false }) {
   const navigate = useNavigate();
   const getPriorityBadge = (priority) => {
-    switch (priority.toLowerCase()) {
+    switch (String(priority || "").toLowerCase()) {
       case "high":
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/60">
@@ -42,7 +41,7 @@ export function RecentReportsTable({ reports }) {
   };
 
   const getStatusBadge = (status) => {
-    switch (status.toLowerCase()) {
+    switch (String(status || "").toLowerCase()) {
       case "assigned":
         return (
           <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-700">
@@ -119,7 +118,20 @@ export function RecentReportsTable({ reports }) {
             </thead>
 
             <tbody className="divide-y divide-slate-50 text-xs font-medium text-slate-700">
-              {reports.map((item) => (
+              {loading ? (
+                <tr>
+                  <td colSpan="7" className="py-8 text-center text-slate-400">
+                    Loading your reports...
+                  </td>
+                </tr>
+              ) : reports.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="py-8 text-center text-slate-400">
+                    You have not submitted any reports yet.
+                  </td>
+                </tr>
+              ) : (
+                reports.map((item) => (
                 <tr
                   key={item.id}
                   className="hover:bg-slate-50/50 transition-colors"
@@ -141,7 +153,7 @@ export function RecentReportsTable({ reports }) {
                         title="Track Progress"
                         onClick={() =>
                           navigate(`/track-report/${item.id}`, {
-                            state: { report: getReportById(item.id) },
+                            state: { report: item },
                           })
                         }
                         className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
@@ -150,7 +162,7 @@ export function RecentReportsTable({ reports }) {
                       </button>
                       <button
                         title="Download Report"
-                        onClick={() => downloadReport(getReportById(item.id))}
+                        onClick={() => downloadReport(item)}
                         className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                       >
                         <Download className="h-3.5 w-3.5" />
@@ -158,7 +170,8 @@ export function RecentReportsTable({ reports }) {
                     </div>
                   </td>
                 </tr>
-              ))}
+              ))
+              )}
             </tbody>
           </table>
         </div>

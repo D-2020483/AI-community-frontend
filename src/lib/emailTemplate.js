@@ -70,7 +70,7 @@ function wrap(content) {
 /**
  * Builds the admin email preview object for an authority.
  */
-export function buildAuthorityEmail({ name, email, tempPassword }) {
+export function buildAuthorityEmail({ name, email, tempPassword, inviteUrl }) {
   const content = `
     <p>Hello <strong>${name}</strong>,</p>
     <p>Your government authority account has been created on the <strong>${SYSTEM_NAME}</strong> platform. You can now log in to manage and resolve community reports assigned to your authority.</p>
@@ -78,17 +78,15 @@ export function buildAuthorityEmail({ name, email, tempPassword }) {
       <div class="row"><span class="label">Login URL</span><span class="value">${LOGIN_URL}</span></div>
       <div class="row"><span class="label">Official Email</span><span class="value">${email}</span></div>
       <div class="row"><span class="label">Temporary Password</span><span class="value"><span class="password">${tempPassword}</span></span></div>
+      ${inviteUrl ? `<div class="row"><span class="label">Activation Link</span><span class="value"><a href="${inviteUrl}">Activate account</a></span></div>` : ""}
     </div>
-    <p><strong>Important:</strong> For security reasons, you will be required to change your password after your first login. Please do not share your credentials with anyone.</p>
-    <a class="login-btn" href="${LOGIN_URL}">Go to Login</a>
+    <p><strong>Important:</strong> Activate your account using the link above, or sign in with the temporary password and set a new password on first login.</p>
+    <a class="login-btn" href="${inviteUrl || LOGIN_URL}">Go to Login</a>
   `;
   return wrap(content);
 }
 
-/**
- * Builds the admin email preview object for an officer.
- */
-export function buildOfficerEmail({ name, email, tempPassword, authority }) {
+export function buildOfficerEmail({ name, email, tempPassword, authority, inviteUrl }) {
   const content = `
     <p>Hello <strong>${name}</strong>,</p>
     <p>Your officer account has been created on the <strong>${SYSTEM_NAME}</strong> platform under <strong>${authority}</strong>. You can now log in to view and resolve reports assigned to you.</p>
@@ -96,9 +94,10 @@ export function buildOfficerEmail({ name, email, tempPassword, authority }) {
       <div class="row"><span class="label">Login URL</span><span class="value">${LOGIN_URL}</span></div>
       <div class="row"><span class="label">Official Email</span><span class="value">${email}</span></div>
       <div class="row"><span class="label">Temporary Password</span><span class="value"><span class="password">${tempPassword}</span></span></div>
+      ${inviteUrl ? `<div class="row"><span class="label">Activation Link</span><span class="value"><a href="${inviteUrl}">Activate account</a></span></div>` : ""}
     </div>
-    <p><strong>Important:</strong> You will be required to change your password after your first login. Please keep your credentials secure.</p>
-    <a class="login-btn" href="${LOGIN_URL}">Go to Login</a>
+    <p><strong>Important:</strong> Activate your account using the link above, or sign in with the temporary password and set a new password on first login.</p>
+    <a class="login-btn" href="${inviteUrl || LOGIN_URL}">Go to Login</a>
   `;
   return wrap(content);
 }

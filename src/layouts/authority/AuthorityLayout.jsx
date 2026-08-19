@@ -2,13 +2,13 @@ import React, { useState } from "react";
 import { Navigate } from "react-router-dom";
 import { AuthoritySidebar } from "@/layouts/authority/AuthoritySidebar";
 import { AuthorityHeader } from "@/layouts/authority/AuthorityHeader";
-import { useAuthority } from "@/context/AuthorityContext";
+import { useAuth } from "@/context/AuthContext";
 
 export function AuthorityLayout({ title, subtitle, children }) {
-  const { authority } = useAuthority();
+  const { isAuthenticated, role } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  if (!authority) {
+  if (!isAuthenticated || role !== "authority") {
     return <Navigate to="/login" replace />;
   }
 

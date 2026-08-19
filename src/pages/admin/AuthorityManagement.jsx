@@ -26,10 +26,8 @@ import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StatusBadge } from "@/components/ui/Badge";
 import { authoritiesData } from "@/data/adminData";
-import {
-  generateTemporaryPassword,
-  buildAuthorityEmail,
-} from "@/lib/emailTemplate";
+import { apiRequest, getErrorMessage } from "@/lib/api";
+import { mapAuthorityFromApi } from "@/lib/adminMappers";
 import { toast } from "react-hot-toast";
 
 function AuthorityLogo({ name, logo, status }) {
@@ -66,11 +64,12 @@ export default function AuthorityManagement() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("All Status");
-  const [authorities, setAuthorities] = useState(authoritiesData);
+  const [authorities, setAuthorities] = useState([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [editAuth, setEditAuth] = useState(null);
   const [deactivateAuth, setDeactivateAuth] = useState(null);
   const [deleteAuth, setDeleteAuth] = useState(null);
+  const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -81,10 +80,31 @@ export default function AuthorityManagement() {
     description: "",
     logo: null,
   });
+  const [createdCredentials, setCreatedCredentials] = useState(null);
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 600);
-    return () => clearTimeout(t);
+    let cancelled = false;
+
+    const loadAuthorities = async () => {
+      try {
+        const data = await apiRequest("/admin/authorities");
+        if (!cancelled) {
+          setAuthorities(data.data.authorities.map(mapAuthorityFromApi));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          toast.error(getErrorMessage(error.data, "Failed to load authorities"));
+          setAuthorities(authoritiesData);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    loadAuthorities();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const filtered = useMemo(() => {
@@ -101,57 +121,71 @@ export default function AuthorityManagement() {
     });
   }, [authorities, query, filterStatus]);
 
-  const handleCreate = (e) => {
+  const handleCreate = async (e) => {
     e.preventDefault();
+    if (busy) return;
     if (!form.name || !form.email) {
       toast.error("Authority name and email are required");
       return;
     }
-    const tempPassword = generateTemporaryPassword();
-    const emailHtml = buildAuthorityEmail({
-      name: form.name,
-      email: form.email,
-      tempPassword,
-    });
 
-    const newAuth = {
-      id: `auth-${Date.now()}`,
-      name: form.name,
-      email: form.email,
-      phone: form.phone || "—",
-      address: form.address || "—",
-      coverage: form.coverage || "All Metro Districts",
-      district: form.district || "Central District",
-      description: form.description || "",
-      officers: 0,
-      activeReports: 0,
-      resolvedReports: 0,
-      populationCovered: 0,
-      areaSize: "—",
-      operatingHours: "Mon–Fri, 8:00 AM – 5:00 PM",
-      head: { name: "TBD", position: "Head of Authority" },
-      status: "Active",
-      logo: form.logo,
-    };
+    const createdEmail = form.email.trim();
+    setBusy(true);
+    try {
+      const data = await apiRequest("/admin/authorities", {
+        method: "POST",
+        body: JSON.stringify({
+          name: form.name.trim(),
+          email: createdEmail,
+          phone: form.phone,
+          address: form.address,
+          coverage: form.coverage,
+          district: form.district,
+          description: form.description,
+        }),
+      });
 
-    setAuthorities((prev) => [newAuth, ...prev]);
-    setCreateOpen(false);
-    setForm({
-      name: "",
-      email: "",
-      phone: "",
-      address: "",
-      coverage: "",
-      district: "",
-      description: "",
-      logo: null,
-    });
+      const { authority, tempPassword, loginUrl, inviteUrl, emailStatus } =
+        data.data;
+      setAuthorities((prev) => [mapAuthorityFromApi(authority), ...prev]);
+      setCreateOpen(false);
+      setForm({
+        name: "",
+        email: "",
+        phone: "",
+        address: "",
+        coverage: "",
+        district: "",
+        description: "",
+        logo: null,
+      });
 
-    window.open("", "_blank").document.write(emailHtml);
-    toast.success(
-      `Authority created. Temporary password sent to ${form.email}`,
-      { duration: 5000 },
-    );
+      setCreatedCredentials({
+        name: authority?.name || form.name,
+        email: createdEmail,
+        password: tempPassword,
+        loginUrl: loginUrl || inviteUrl,
+        emailSent: Boolean(emailStatus?.sent),
+        emailMessage: emailStatus?.message,
+      });
+
+      if (emailStatus?.sent) {
+        toast.success(
+          `Authority created. Login details were emailed to ${createdEmail}`,
+          { duration: 6000 },
+        );
+      } else {
+        toast.error(
+          emailStatus?.message ||
+            `Authority created, but the email was not sent. Copy the login details for ${createdEmail}`,
+          { duration: 8000 },
+        );
+      }
+    } catch (error) {
+      toast.error(getErrorMessage(error.data, error.message));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleLogoUpload = (e) => {
@@ -165,36 +199,78 @@ export default function AuthorityManagement() {
     reader.readAsDataURL(file);
   };
 
-  const handleSaveEdit = (e) => {
+  const handleSaveEdit = async (e) => {
     e.preventDefault();
-    if (!editAuth) return;
-    setAuthorities((prev) =>
-      prev.map((a) => (a.id === editAuth.id ? { ...a, ...editAuth } : a)),
-    );
-    toast.success("Authority updated successfully");
-    setEditAuth(null);
+    if (!editAuth || busy) return;
+    if (!editAuth.name?.trim() || !editAuth.email?.trim()) {
+      toast.error("Authority name and email are required");
+      return;
+    }
+    setBusy(true);
+    try {
+      const data = await apiRequest(`/admin/authorities/${editAuth.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: editAuth.name.trim(),
+          email: editAuth.email.trim(),
+          phone: editAuth.phone === "—" ? "" : editAuth.phone,
+          address: editAuth.address === "—" ? "" : editAuth.address,
+          coverage: editAuth.coverage,
+          district: editAuth.district === "—" ? "" : editAuth.district,
+          description: editAuth.description,
+        }),
+      });
+      const updated = mapAuthorityFromApi(data.data.authority);
+      setAuthorities((prev) =>
+        prev.map((a) => (a.id === updated.id ? updated : a)),
+      );
+      toast.success("Authority updated successfully");
+      setEditAuth(null);
+    } catch (error) {
+      toast.error(getErrorMessage(error.data, error.message || "Failed to update authority"));
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const handleDeactivate = () => {
-    if (!deactivateAuth) return;
-    const newStatus =
-      deactivateAuth.status === "Active" ? "Inactive" : "Active";
-    setAuthorities((prev) =>
-      prev.map((a) =>
-        a.id === deactivateAuth.id ? { ...a, status: newStatus } : a,
-      ),
-    );
-    toast.success(
-      `${deactivateAuth.name} ${newStatus === "Active" ? "activated" : "deactivated"} successfully`,
-    );
-    setDeactivateAuth(null);
+  const handleDeactivate = async () => {
+    if (!deactivateAuth || busy) return;
+    setBusy(true);
+    try {
+      const data = await apiRequest(
+        `/admin/authorities/${deactivateAuth.id}/status`,
+        { method: "PATCH" },
+      );
+      const updated = mapAuthorityFromApi(data.data.authority);
+      setAuthorities((prev) =>
+        prev.map((a) => (a.id === updated.id ? updated : a)),
+      );
+      toast.success(
+        `${updated.name} ${updated.status === "Active" ? "activated" : "deactivated"} successfully`,
+      );
+      setDeactivateAuth(null);
+    } catch (error) {
+      toast.error(getErrorMessage(error.data, error.message || "Failed to update status"));
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const handleDelete = () => {
-    if (!deleteAuth) return;
-    setAuthorities((prev) => prev.filter((a) => a.id !== deleteAuth.id));
-    toast.success(`${deleteAuth.name} removed from the system`);
-    setDeleteAuth(null);
+  const handleDelete = async () => {
+    if (!deleteAuth || busy) return;
+    setBusy(true);
+    try {
+      await apiRequest(`/admin/authorities/${deleteAuth.id}`, {
+        method: "DELETE",
+      });
+      setAuthorities((prev) => prev.filter((a) => a.id !== deleteAuth.id));
+      toast.success(`${deleteAuth.name} removed from the system`);
+      setDeleteAuth(null);
+    } catch (error) {
+      toast.error(getErrorMessage(error.data, error.message || "Failed to delete authority"));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const selectClass =
@@ -325,7 +401,7 @@ export default function AuthorityManagement() {
                   <Eye className="h-3.5 w-3.5" /> View
                 </button>
                 <button
-                  onClick={() => setEditAuth(a)}
+                  onClick={() => setEditAuth({ ...a })}
                   title="Edit"
                   className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors cursor-pointer"
                 >
@@ -372,7 +448,7 @@ export default function AuthorityManagement() {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         title="Create New Authority"
-        subtitle="An account will be generated and login credentials emailed"
+        subtitle="A password is generated and emailed with the login link"
         size="lg"
         footer={
           <>
@@ -384,9 +460,10 @@ export default function AuthorityManagement() {
             </button>
             <button
               onClick={handleCreate}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition-all active:scale-[0.98] cursor-pointer"
+              disabled={busy}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
             >
-              <ShieldCheck className="h-3.5 w-3.5" /> Create & Send Credentials
+              <ShieldCheck className="h-3.5 w-3.5" /> {busy ? "Creating..." : "Create & Email Login"}
             </button>
           </>
         }
@@ -465,6 +542,7 @@ export default function AuthorityManagement() {
                 onChange={(e) => setForm({ ...form, district: e.target.value })}
               >
                 {[
+                  "",
                   "North District",
                   "Central District",
                   "East District",
@@ -473,7 +551,9 @@ export default function AuthorityManagement() {
                   "Industrial Zone",
                   "Harbor District",
                 ].map((d) => (
-                  <option key={d}>{d}</option>
+                  <option key={d || "none"} value={d}>
+                    {d || "Select district"}
+                  </option>
                 ))}
               </select>
             </div>
@@ -511,12 +591,10 @@ export default function AuthorityManagement() {
           </div>
           <div className="rounded-xl bg-indigo-50/70 border border-indigo-100 p-4">
             <p className="text-[11px] text-indigo-700 leading-relaxed">
-              <strong className="font-bold">On save:</strong> A secure account
-              will be generated, a temporary password created, and a
-              professional HTML email with login credentials will be sent to{" "}
+              <strong className="font-bold">On save:</strong> A password will
+              be generated automatically and emailed with the login link to{" "}
               <strong>{form.email || "the official email"}</strong>. The
-              authority will be required to change their password after first
-              login.
+              authority can then sign in with that email and password.
             </p>
           </div>
         </form>
@@ -539,9 +617,10 @@ export default function AuthorityManagement() {
             </button>
             <button
               onClick={handleSaveEdit}
-              className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors cursor-pointer"
+              disabled={busy}
+              className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors cursor-pointer disabled:opacity-50"
             >
-              Save Changes
+              {busy ? "Saving..." : "Save Changes"}
             </button>
           </>
         }
@@ -634,11 +713,16 @@ export default function AuthorityManagement() {
             : `${deactivateAuth?.name} will be re-activated and resume receiving reports.`
         }
         confirmLabel={
-          deactivateAuth?.status === "Active" ? "Deactivate" : "Activate"
+          busy
+            ? "Please wait..."
+            : deactivateAuth?.status === "Active"
+              ? "Deactivate"
+              : "Activate"
         }
         tone={deactivateAuth?.status === "Active" ? "danger" : "primary"}
         onConfirm={handleDeactivate}
         onCancel={() => setDeactivateAuth(null)}
+        loading={busy}
       />
 
       {/* Delete Dialog */}
@@ -650,7 +734,75 @@ export default function AuthorityManagement() {
         tone="danger"
         onConfirm={handleDelete}
         onCancel={() => setDeleteAuth(null)}
+        loading={busy}
       />
+      <Modal
+        open={!!createdCredentials}
+        onClose={() => setCreatedCredentials(null)}
+        title="Authority login details"
+        subtitle={
+          createdCredentials?.emailSent
+            ? "These details were also emailed to the official address"
+            : "Email was not sent. Copy these details and share them securely"
+        }
+        size="md"
+        footer={
+          <button
+            onClick={() => setCreatedCredentials(null)}
+            className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl cursor-pointer"
+          >
+            Done
+          </button>
+        }
+      >
+        {createdCredentials && (
+          <div className="space-y-3 text-sm">
+            <p className="text-xs text-slate-500">
+              {createdCredentials.name} can sign in to the authority workspace
+              with:
+            </p>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
+              <p>
+                <span className="text-[10px] font-bold uppercase text-slate-400">
+                  Login page
+                </span>
+                <br />
+                <a
+                  href={createdCredentials.loginUrl}
+                  className="text-indigo-600 font-semibold break-all"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {createdCredentials.loginUrl}
+                </a>
+              </p>
+              <p>
+                <span className="text-[10px] font-bold uppercase text-slate-400">
+                  Official email
+                </span>
+                <br />
+                <span className="font-semibold text-slate-800">
+                  {createdCredentials.email}
+                </span>
+              </p>
+              <p>
+                <span className="text-[10px] font-bold uppercase text-slate-400">
+                  Password
+                </span>
+                <br />
+                <span className="font-mono font-semibold text-indigo-700">
+                  {createdCredentials.password}
+                </span>
+              </p>
+            </div>
+            {createdCredentials.emailMessage && (
+              <p className="text-[11px] text-slate-500">
+                {createdCredentials.emailMessage}
+              </p>
+            )}
+          </div>
+        )}
+      </Modal>
     </AdminLayout>
   );
 }

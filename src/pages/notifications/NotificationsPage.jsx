@@ -1,5 +1,6 @@
-﻿import React, { useState, useMemo } from "react";
+﻿import React, { useState, useMemo, useEffect } from "react";
 import toast from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
 import {
   Search,
   CheckCheck,
@@ -17,9 +18,15 @@ import {
 import { ResponsiveSidebar } from "@/layouts/citizen/ResponsiveSidebar";
 import { HeaderNavbar } from "@/layouts/citizen/HeaderNavbar";
 import {
-  notificationsData,
   notificationCategories,
 } from "@/data/notificationsData";
+import { useMyReports } from "@/hooks/useMyReports";
+import {
+  deleteStoredNotification,
+  markAllNotificationsRead,
+  markNotificationRead,
+  notificationsFromReports,
+} from "@/lib/citizenNotifications";
 
 const typeConfig = {
   approved: {
@@ -53,11 +60,17 @@ const typeConfig = {
 const filters = ["All", "Read", "Unread", "Today", "This Week"];
 
 export default function NotificationsPage() {
+  const navigate = useNavigate();
+  const { reports, loading } = useMyReports();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [notifications, setNotifications] = useState(notificationsData);
+  const [notifications, setNotifications] = useState([]);
   const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
   const [activeCategory, setActiveCategory] = useState("all");
+
+  useEffect(() => {
+    setNotifications(notificationsFromReports(reports));
+  }, [reports]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -73,7 +86,7 @@ export default function NotificationsPage() {
       if (activeFilter === "Unread") matchesFilter = !n.read;
       if (activeFilter === "Today") matchesFilter = n.date === "Today";
       if (activeFilter === "This Week")
-        matchesFilter = ["Today", "Yesterday", "2 days ago"].includes(n.date);
+        matchesFilter = (n.diffDays ?? 99) <= 7;
       return matchesQuery && matchesCategory && matchesFilter;
     });
   }, [notifications, query, activeFilter, activeCategory]);
@@ -81,6 +94,7 @@ export default function NotificationsPage() {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const markAsRead = (id) => {
+    markNotificationRead(id);
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
     );
@@ -88,11 +102,13 @@ export default function NotificationsPage() {
   };
 
   const markAllAsRead = () => {
+    markAllNotificationsRead(notifications.map((n) => n.id));
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     toast.success("All notifications marked as read.");
   };
 
   const deleteNotification = (id) => {
+    deleteStoredNotification(id);
     setNotifications((prev) => prev.filter((n) => n.id !== id));
     toast("Notification deleted.");
   };
@@ -183,13 +199,28 @@ export default function NotificationsPage() {
 
           {/* Notifications List */}
           <div className="space-y-3 animate-slide-up">
-            {filtered.map((n) => {
-              const cfg = typeConfig[n.type];
+            {loading ? (
+              <div className="text-center py-12 text-slate-400">
+                <p className="text-sm font-semibold text-slate-600">
+                  Loading your notifications...
+                </p>
+              </div>
+            ) : (
+              filtered.map((n) => {
+              const cfg = typeConfig[n.type] || typeConfig.status;
               const Icon = cfg.icon;
               return (
                 <div
                   key={n.id}
-                  className={`group flex items-start gap-4 p-4 rounded-2xl border bg-white transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${
+                  onClick={() =>
+                    n.reportId &&
+                    navigate(`/track-report/${n.reportId}`, {
+                      state: {
+                        report: reports.find((r) => r.id === n.reportId),
+                      },
+                    })
+                  }
+                  className={`group flex items-start gap-4 p-4 rounded-2xl border bg-white transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 cursor-pointer ${
                     n.read
                       ? "border-slate-200/80"
                       : "border-indigo-100 bg-indigo-50/40 shadow-sm"
@@ -216,7 +247,10 @@ export default function NotificationsPage() {
                       <div className="flex items-center gap-1 shrink-0">
                         {!n.read && (
                           <button
-                            onClick={() => markAsRead(n.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              markAsRead(n.id);
+                            }}
                             title="Mark as read"
                             className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
                           >
@@ -224,7 +258,10 @@ export default function NotificationsPage() {
                           </button>
                         )}
                         <button
-                          onClick={() => deleteNotification(n.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteNotification(n.id);
+                          }}
                           title="Delete"
                           className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                         >
@@ -249,9 +286,10 @@ export default function NotificationsPage() {
                   </div>
                 </div>
               );
-            })}
+            })
+            )}
 
-            {filtered.length === 0 && (
+            {!loading && filtered.length === 0 && (
               <div className="text-center py-12 text-slate-400">
                 <Inbox className="h-10 w-10 mx-auto mb-3 text-slate-300" />
                 <p className="text-sm font-semibold text-slate-600">

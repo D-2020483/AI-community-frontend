@@ -14,9 +14,11 @@ import {
   Car,
   TreePine,
   Volume2,
-  EyeOff,
+  Eye,
   CheckCircle2,
   Gauge,
+  EyeOff,
+  ChevronDown,
 } from "lucide-react";
 import { AdminLayout } from "@/layouts/admin/AdminLayout";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -26,6 +28,8 @@ import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StatusBadge } from "@/components/ui/Badge";
 import { categoriesData } from "@/data/adminData";
+import { apiRequest, getErrorMessage } from "@/lib/api";
+import { mapCategoryFromApi } from "@/lib/adminMappers";
 import { toast } from "react-hot-toast";
 
 const iconMap = {
@@ -38,83 +42,158 @@ const iconMap = {
   Car,
   TreePine,
   Volume2,
+  EyeOff,
 };
 
 const inputClass =
   "w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/15 shadow-sm transition-all";
 const labelClass = "text-xs font-bold text-slate-700 block mb-1.5";
+const selectClass =
+  "w-full pl-4 pr-9 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 appearance-none focus:outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/15 shadow-sm transition-all cursor-pointer";
 
 export default function CategoriesManagement() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
-  const [categories, setCategories] = useState(categoriesData);
+  const [filterCategory, setFilterCategory] = useState("All Categories");
+  const [filterStatus, setFilterStatus] = useState("All Status");
+  const [categories, setCategories] = useState([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [editCat, setEditCat] = useState(null);
   const [toggleCat, setToggleCat] = useState(null);
   const [deleteCat, setDeleteCat] = useState(null);
+  const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({ name: "", icon: "Tag", color: "#4f46e5" });
 
+  const loadCategories = async () => {
+    try {
+      setLoading(true);
+      const data = await apiRequest("/admin/categories");
+      setCategories((data.data?.categories || []).map(mapCategoryFromApi));
+    } catch (error) {
+      toast.error(getErrorMessage(error.data, "Failed to load categories"));
+      setCategories(categoriesData);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 500);
-    return () => clearTimeout(t);
+    loadCategories();
   }, []);
+
+  const categoryOptions = useMemo(
+    () =>
+      [...new Set(categories.map((c) => c.name).filter(Boolean))].sort((a, b) =>
+        a.localeCompare(b),
+      ),
+    [categories],
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return categories.filter((c) => c.name.toLowerCase().includes(q));
-  }, [categories, query]);
+    return categories.filter((c) => {
+      const matchQuery =
+        !q ||
+        c.name.toLowerCase().includes(q) ||
+        String(c.code || "").toLowerCase().includes(q);
+      const matchCategory =
+        filterCategory === "All Categories" || c.name === filterCategory;
+      const matchStatus =
+        filterStatus === "All Status" || c.status === filterStatus;
+      return matchQuery && matchCategory && matchStatus;
+    });
+  }, [categories, query, filterCategory, filterStatus]);
 
   const totalReports = categories.reduce((s, c) => s + c.reports, 0);
 
-  const handleCreate = (e) => {
+  const handleCreate = async (e) => {
     e.preventDefault();
     if (!form.name) {
       toast.error("Category name is required");
       return;
     }
-    const newCat = {
-      id: `cat-${Date.now()}`,
-      name: form.name,
-      icon: form.icon,
-      reports: 0,
-      color: form.color,
-      status: "Active",
-    };
-    setCategories((prev) => [newCat, ...prev]);
-    setCreateOpen(false);
-    setForm({ name: "", icon: "Tag", color: "#4f46e5" });
-    toast.success("Category created successfully");
+    setBusy(true);
+    try {
+      const data = await apiRequest("/admin/categories", {
+        method: "POST",
+        body: JSON.stringify({
+          name: form.name,
+          icon: form.icon,
+          color: form.color,
+        }),
+      });
+      setCategories((prev) => [mapCategoryFromApi(data.data.category), ...prev]);
+      setCreateOpen(false);
+      setForm({ name: "", icon: "Tag", color: "#4f46e5" });
+      toast.success("Category created successfully");
+    } catch (error) {
+      toast.error(getErrorMessage(error.data, error.message || "Failed to create category"));
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
-    if (!editCat) return;
-    setCategories((prev) =>
-      prev.map((c) => (c.id === editCat.id ? { ...c, ...editCat } : c)),
-    );
-    toast.success("Category updated successfully");
-    setEditCat(null);
+    if (!editCat || busy) return;
+    setBusy(true);
+    try {
+      const data = await apiRequest(`/admin/categories/${editCat.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: editCat.name,
+          icon: editCat.icon,
+          color: editCat.color,
+        }),
+      });
+      const updated = mapCategoryFromApi(data.data.category);
+      setCategories((prev) =>
+        prev.map((c) => (c.id === updated.id ? updated : c)),
+      );
+      toast.success("Category updated successfully");
+      setEditCat(null);
+    } catch (error) {
+      toast.error(getErrorMessage(error.data, error.message || "Failed to update category"));
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const handleToggle = () => {
-    if (!toggleCat) return;
-    const newStatus = toggleCat.status === "Active" ? "Inactive" : "Active";
-    setCategories((prev) =>
-      prev.map((c) =>
-        c.id === toggleCat.id ? { ...c, status: newStatus } : c,
-      ),
-    );
-    toast.success(
-      `Category ${toggleCat.name} ${newStatus === "Active" ? "activated" : "deactivated"}`,
-    );
-    setToggleCat(null);
+  const handleToggle = async () => {
+    if (!toggleCat || busy) return;
+    setBusy(true);
+    try {
+      const data = await apiRequest(`/admin/categories/${toggleCat.id}/status`, {
+        method: "PATCH",
+      });
+      const updated = mapCategoryFromApi(data.data.category);
+      setCategories((prev) =>
+        prev.map((c) => (c.id === updated.id ? updated : c)),
+      );
+      toast.success(
+        `Category ${updated.name} ${updated.status === "Active" ? "activated" : "deactivated"}`,
+      );
+      setToggleCat(null);
+    } catch (error) {
+      toast.error(getErrorMessage(error.data, error.message || "Failed to update status"));
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const handleDelete = () => {
-    if (!deleteCat) return;
-    setCategories((prev) => prev.filter((c) => c.id !== deleteCat.id));
-    toast.success("Category deleted");
-    setDeleteCat(null);
+  const handleDelete = async () => {
+    if (!deleteCat || busy) return;
+    setBusy(true);
+    try {
+      await apiRequest(`/admin/categories/${deleteCat.id}`, { method: "DELETE" });
+      setCategories((prev) => prev.filter((c) => c.id !== deleteCat.id));
+      toast.success("Category deleted");
+      setDeleteCat(null);
+    } catch (error) {
+      toast.error(getErrorMessage(error.data, error.message || "Failed to delete category"));
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -174,8 +253,8 @@ export default function CategoriesManagement() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 animate-slide-up">
+      {/* Search + Filters */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 space-y-4 animate-slide-up">
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
           <input
@@ -185,6 +264,32 @@ export default function CategoriesManagement() {
             placeholder="Search categories..."
             className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/15 shadow-sm transition-all"
           />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="relative">
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className={selectClass}
+            >
+              {["All Categories", ...categoryOptions].map((name) => (
+                <option key={name}>{name}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+          </div>
+          <div className="relative">
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className={selectClass}
+            >
+              {["All Status", "Active", "Inactive"].map((status) => (
+                <option key={status}>{status}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+          </div>
         </div>
       </div>
 
@@ -207,7 +312,9 @@ export default function CategoriesManagement() {
               <tbody className="divide-y divide-slate-50 text-xs font-medium text-slate-700">
                 {filtered.map((c) => {
                   const Icon = iconMap[c.icon] || Tag;
-                  const share = Math.round((c.reports / totalReports) * 100);
+                  const share = totalReports
+                    ? Math.round((c.reports / totalReports) * 100)
+                    : 0;
                   return (
                     <tr
                       key={c.id}
@@ -260,7 +367,7 @@ export default function CategoriesManagement() {
                         <div className="flex items-center justify-end gap-1">
                           <button
                             title="Edit"
-                            onClick={() => setEditCat(c)}
+                            onClick={() => setEditCat({ ...c })}
                             className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                           >
                             <Pencil className="h-4 w-4" />
@@ -271,7 +378,7 @@ export default function CategoriesManagement() {
                             className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
                           >
                             {c.status === "Active" ? (
-                              <EyeOff className="h-4 w-4" />
+                              <Eye className="h-4 w-4" />
                             ) : (
                               <CheckCircle2 className="h-4 w-4" />
                             )}
@@ -296,7 +403,7 @@ export default function CategoriesManagement() {
             <EmptyState
               icon={Tag}
               title="No categories found"
-              description="Try a different search or add a new category."
+              description="Try a different search, filter, or add a new category."
             />
           )}
         </div>
@@ -450,6 +557,7 @@ export default function CategoriesManagement() {
         tone={toggleCat?.status === "Active" ? "danger" : "primary"}
         onConfirm={handleToggle}
         onCancel={() => setToggleCat(null)}
+        loading={busy}
       />
 
       {/* Delete Category Dialog */}
@@ -461,6 +569,7 @@ export default function CategoriesManagement() {
         tone="danger"
         onConfirm={handleDelete}
         onCancel={() => setDeleteCat(null)}
+        loading={busy}
       />
     </AdminLayout>
   );

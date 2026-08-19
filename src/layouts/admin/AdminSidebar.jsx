@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   LayoutGrid,
   Users,
@@ -16,8 +16,9 @@ import {
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-
-const ROLE = "admin";
+import { apiRequest } from "@/lib/api";
+import { applyAdminNotificationState } from "@/lib/adminNotifications";
+import { unseenReportCount } from "@/lib/reportBadges";
 
 const navSections = [
   {
@@ -36,7 +37,7 @@ const navSections = [
         path: "/admin/officers",
       },
       { name: "Categories", icon: Tag, path: "/admin/categories" },
-      { name: "Reports", icon: FileText, path: "/admin/reports", badge: 12 },
+      { name: "Reports", icon: FileText, path: "/admin/reports", badgeKey: "reports" },
       { name: "Analytics", icon: BarChart3, path: "/admin/analytics" },
     ],
   },
@@ -47,7 +48,7 @@ const navSections = [
         name: "Notifications",
         icon: Bell,
         path: "/admin/notifications",
-        badge: 5,
+        badgeKey: "notifications",
       },
       { name: "Settings", icon: Settings, path: "/admin/settings" },
     ],
@@ -57,15 +58,51 @@ const navSections = [
 export function AdminSidebar({ isOpen, onClose }) {
   const navigate = useNavigate();
   const location = useLocation();
-const { setRole } = useAuth();
+  const { logout, user } = useAuth();
+  const [badges, setBadges] = useState({ reports: 0, notifications: 0 });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadBadges = async () => {
+      try {
+        const [reportsRes, notesRes] = await Promise.all([
+          apiRequest("/admin/reports"),
+          apiRequest("/admin/notifications"),
+        ]);
+        if (cancelled) return;
+        const reports = reportsRes.data?.reports || [];
+        const notifications = applyAdminNotificationState(
+          notesRes.data?.notifications || [],
+        );
+        setBadges({
+          reports: location.pathname.startsWith("/admin/reports")
+            ? 0
+            : unseenReportCount(reports),
+          notifications: location.pathname.startsWith("/admin/notifications")
+            ? 0
+            : notifications.filter((item) => !item.read).length,
+        });
+      } catch {
+        if (!cancelled) setBadges({ reports: 0, notifications: 0 });
+      }
+    };
+
+    loadBadges();
+    const timer = setInterval(loadBadges, 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [location.pathname]);
 
   const isActive = (path) => {
     if (path === "/admin/dashboard") return location.pathname === path;
     return location.pathname.startsWith(path);
   };
 
-  const handleLogout = () => {
-    setRole(ROLE);
+  const handleLogout = async () => {
+    await logout();
     navigate("/login");
   };
 
@@ -122,6 +159,7 @@ const { setRole } = useAuth();
                 {section.items.map((item) => {
                   const Icon = item.icon;
                   const active = isActive(item.path);
+                  const badge = item.badgeKey ? badges[item.badgeKey] : 0;
                   return (
                     <button
                       key={item.name}
@@ -136,20 +174,20 @@ const { setRole } = useAuth();
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <Icon
-                          className={`h-4 w-4 shrink-0 transition-colors ${
-                            active
-                              ? "text-indigo-600"
-                              : "text-slate-400 group-hover:text-slate-600"
-                          }`}
-                        />
+                        <span className="relative shrink-0">
+                          <Icon
+                            className={`h-4 w-4 transition-colors ${
+                              active
+                                ? "text-indigo-600"
+                                : "text-slate-400 group-hover:text-slate-600"
+                            }`}
+                          />
+                          {badge > 0 && (
+                            <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-blue-500 ring-2 ring-white" />
+                          )}
+                        </span>
                         <span className="truncate">{item.name}</span>
                       </div>
-                      {item.badge && (
-                        <span className="bg-indigo-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0">
-                          {item.badge}
-                        </span>
-                      )}
                     </button>
                   );
                 })}
@@ -168,10 +206,10 @@ const { setRole } = useAuth();
             </div>
             <div className="flex flex-col min-w-0">
               <span className="text-xs font-bold text-slate-900 truncate">
-                Super Admin
+                {user?.fullName || "Super Admin"}
               </span>
               <span className="text-[10px] text-slate-400 truncate">
-                admin@civiclink.gov
+                {user?.email || "admin@civiclink.gov"}
               </span>
             </div>
           </div>

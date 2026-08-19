@@ -10,16 +10,13 @@ import {
   Building2,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useAuthority } from "@/context/AuthorityContext";
 import { useAuth } from "@/context/AuthContext";
-
-const ROLE = "authority";
 
 const navSections = [
   {
     label: "Authority Workspace",
     items: [
-{ name: "Dashboard", icon: LayoutGrid, path: "/authority/dashboard" },
+      { name: "Dashboard", icon: LayoutGrid, path: "/authority/dashboard" },
       {
         name: "Reports",
         icon: FileText,
@@ -43,17 +40,17 @@ const navSections = [
 export function AuthoritySidebar({ isOpen, onClose }) {
   const navigate = useNavigate();
   const location = useLocation();
-const { authority, logoutAuthority } = useAuthority();
-  const { setRole } = useAuth();
+  const { user, logout } = useAuth();
+
+  const authorityName = user?.authority?.name || user?.fullName || "Authority";
 
   const isActive = (path) => {
     if (path === "/authority/dashboard") return location.pathname === path;
     return location.pathname.startsWith(path);
   };
 
-  const handleLogout = () => {
-    logoutAuthority();
-    setRole(ROLE);
+  const handleLogout = async () => {
+    await logout();
     navigate("/login");
   };
 
@@ -71,7 +68,6 @@ const { authority, logoutAuthority } = useAuthority();
             </span>
           </div>
 
-          {/* Mobile Close Button */}
           {onClose && (
             <button
               onClick={onClose}
@@ -82,24 +78,16 @@ const { authority, logoutAuthority } = useAuthority();
           )}
         </div>
 
-        {/* Authority Role Chip */}
         <div className="px-4 pt-4">
-          <div
-            className={`flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-br ${authority?.color || "from-indigo-600 to-violet-600"} text-white shadow-md shadow-indigo-600/20`}
-          >
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-600/20">
             <Building2 className="h-4 w-4 shrink-0" />
             <div className="min-w-0">
-              <p className="text-[11px] font-bold leading-tight">
-                {authority?.authorityName || "Authority"}
-              </p>
-              <p className="text-[9px] text-white/80 truncate">
-                {authority?.email || "Signed in"}
-              </p>
+              <p className="text-[11px] font-bold leading-tight">{authorityName}</p>
+              <p className="text-[9px] text-white/80 truncate">{user?.email || ""}</p>
             </div>
           </div>
         </div>
 
-        {/* Navigation */}
         <nav className="px-3 mt-4 pb-4 max-h-[calc(100vh-240px)] overflow-y-auto">
           {navSections.map((section) => (
             <div key={section.label} className="mb-4">
@@ -147,21 +135,18 @@ const { authority, logoutAuthority } = useAuthority();
         </nav>
       </div>
 
-      {/* User Footer Account Block */}
       <div className="p-4 border-t border-slate-100 flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div
-              className={`h-9 w-9 rounded-full bg-gradient-to-br ${authority?.color || "from-indigo-600 to-violet-600"} text-white flex items-center justify-center font-bold text-xs ring-2 ring-indigo-100`}
-            >
-              {(authority?.shortCode || "AU").slice(0, 2).toUpperCase()}
+            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center font-bold text-xs ring-2 ring-indigo-100">
+              {authorityName.slice(0, 2).toUpperCase()}
             </div>
             <div className="flex flex-col min-w-0">
               <span className="text-xs font-bold text-slate-900 truncate">
-                {authority?.authorityName || "Authority"}
+                {authorityName}
               </span>
               <span className="text-[10px] text-slate-400 truncate">
-                {authority?.email || ""}
+                {user?.email || ""}
               </span>
             </div>
           </div>
@@ -183,12 +168,10 @@ const { authority, logoutAuthority } = useAuthority();
 
   return (
     <>
-      {/* Desktop Fixed Sidebar */}
       <aside className="hidden lg:block w-64 min-h-screen border-r border-slate-100 shrink-0 select-none sticky top-0 h-screen">
         {sidebarContent}
       </aside>
 
-      {/* Mobile Drawer Overlay */}
       {isOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
           <div

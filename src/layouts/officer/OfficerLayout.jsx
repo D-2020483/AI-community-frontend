@@ -2,13 +2,13 @@ import React, { useState } from "react";
 import { Navigate } from "react-router-dom";
 import { OfficerSidebar } from "@/layouts/officer/OfficerSidebar";
 import { OfficerHeader } from "@/layouts/officer/OfficerHeader";
-import { useOfficer } from "@/context/OfficerContext";
+import { useAuth } from "@/context/AuthContext";
 
 export function OfficerLayout({ title, subtitle, children }) {
-  const { officer } = useOfficer();
+  const { isAuthenticated, role } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-if (!officer) {
+  if (!isAuthenticated || role !== "officer") {
     return <Navigate to="/login" replace />;
   }
 

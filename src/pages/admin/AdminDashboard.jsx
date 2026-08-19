@@ -36,12 +36,9 @@ import { AdminLayout } from "@/layouts/admin/AdminLayout";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { StatusBadge, PriorityBadge } from "@/components/ui/Badge";
 import { SkeletonCard, SkeletonTable } from "@/components/ui/Skeleton";
-import {
-  adminKpis,
-  monthlyReports,
-  reportsByCategory,
-  authorityPerformance,
-} from "@/data/adminData";
+import { apiRequest, getErrorMessage } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "react-hot-toast";
 
 const iconMap = {
   Users,
@@ -78,73 +75,40 @@ function getStatusBadge(status) {
   return <StatusBadge status={status} />;
 }
 
-const recentReports = [
-  {
-    id: "RPT-1052",
-    title: "Pothole on Oak Street",
-    category: "Roads & Infrastructure",
-    district: "North District",
-    priority: "High",
-    status: "Assigned",
-    date: "Today",
-    authority: "Public Works Dept.",
-  },
-  {
-    id: "RPT-1051",
-    title: "Broken Water Main",
-    category: "Water Supply",
-    district: "Central District",
-    priority: "Critical",
-    status: "In Progress",
-    date: "Today",
-    authority: "Water Authority",
-  },
-  {
-    id: "RPT-1050",
-    title: "Illegal Dumping",
-    category: "Waste Management",
-    district: "East District",
-    priority: "Medium",
-    status: "Pending",
-    date: "Yesterday",
-    authority: "Sanitation Dept.",
-  },
-  {
-    id: "RPT-1049",
-    title: "Street Light Outage",
-    category: "Street Lighting",
-    district: "West District",
-    priority: "Low",
-    status: "Resolved",
-    date: "Yesterday",
-    authority: "Electrical Dept.",
-  },
-  {
-    id: "RPT-1048",
-    title: "Playground Damage",
-    category: "Public Safety",
-    district: "Central District",
-    priority: "Medium",
-    status: "Resolved",
-    date: "2 days ago",
-    authority: "Parks & Recreation",
-  },
-];
-
 export default function AdminDashboard() {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [insights, setInsights] = useState(null);
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 800);
-    return () => clearTimeout(t);
+    let cancelled = false;
+    const load = async () => {
+      try {
+        setLoading(true);
+        const data = await apiRequest("/admin/insights?period=This Year");
+        if (!cancelled) setInsights(data.data);
+      } catch (error) {
+        if (!cancelled) {
+          toast.error(getErrorMessage(error.data, "Failed to load dashboard"));
+          setInsights(null);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const donutData = [
-    { name: "Pending", value: 1842, color: "#f59e0b" },
-    { name: "In Progress", value: 3214, color: "#4f46e5" },
-    { name: "Resolved", value: 22847, color: "#10b981" },
-    { name: "Rejected", value: 1040, color: "#ef4444" },
-  ];
+  const kpis = insights?.kpis || [];
+  const monthlyReports = insights?.monthlyReports || [];
+  const donutData = insights?.statusDonut || [];
+  const recentReports = insights?.recentReports || [];
+  const authorityPerformance = insights?.authorityPerformance || [];
+  const totals = insights?.totals || { reports: 0, resolutionRate: 0 };
+  const adminName = user?.fullName || "Admin";
 
   return (
     <AdminLayout
@@ -162,7 +126,7 @@ export default function AdminDashboard() {
               Administrator Overview
             </span>
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mt-3">
-              Welcome back, Super Admin
+              Welcome back, {adminName}
             </h2>
             <p className="text-sm text-indigo-100/90 mt-1">
               Here's what's happening across the Civic Link platform today.
@@ -173,14 +137,14 @@ export default function AdminDashboard() {
               <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-200">
                 Live reports
               </p>
-              <p className="text-2xl font-extrabold">28,943</p>
+              <p className="text-2xl font-extrabold">{totals.reports}</p>
             </div>
             <div className="h-10 w-px bg-white/20" />
             <div className="text-right">
               <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-200">
                 Resolution rate
               </p>
-              <p className="text-2xl font-extrabold">78.9%</p>
+              <p className="text-2xl font-extrabold">{totals.resolutionRate}%</p>
             </div>
           </div>
         </div>
@@ -195,8 +159,8 @@ export default function AdminDashboard() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 animate-slide-up">
-          {adminKpis.map((kpi) => {
-            const Icon = iconMap[kpi.icon];
+          {kpis.map((kpi) => {
+            const Icon = iconMap[kpi.icon] || ClipboardList;
             return (
               <KpiCard
                 key={kpi.id}
@@ -389,7 +353,14 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50 text-xs font-medium text-slate-700">
-                  {recentReports.map((r) => (
+                  {recentReports.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-8 text-center text-xs text-slate-400">
+                        No citizen reports yet.
+                      </td>
+                    </tr>
+                  ) : (
+                  recentReports.map((r) => (
                     <tr
                       key={r.id}
                       className="hover:bg-slate-50/60 transition-colors"
@@ -415,7 +386,8 @@ export default function AdminDashboard() {
                         {r.authority}
                       </td>
                     </tr>
-                  ))}
+                  ))
+                  )}
                 </tbody>
               </table>
             </div>

@@ -1,7 +1,22 @@
 import React from "react";
-import { MapPin, Search, Target, CheckCircle2, ArrowRight } from "lucide-react";
+import {
+  MapPin,
+  Search,
+  Target,
+  CheckCircle2,
+  ArrowRight,
+  AlertCircle,
+  Loader2,
+} from "lucide-react";
 
-export function SetLocation({ onSubmit }) {
+export function SetLocation({
+  location,
+  onLocationChange,
+  onSubmit,
+  submitting,
+  canSubmit,
+  error,
+}) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-5 flex flex-col justify-between transition-all duration-300 hover:shadow-md h-full">
       <div className="space-y-5">
@@ -49,11 +64,31 @@ export function SetLocation({ onSubmit }) {
         <div className="relative flex items-center">
           <Search className="absolute left-3.5 h-4 w-4 text-slate-400 pointer-events-none" />
           <input
+            value={location}
+            onChange={(e) => onLocationChange(e.target.value)}
             type="text"
             placeholder="Search for an address or place"
             className="w-full pl-10 pr-12 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/15 shadow-xs transition-all"
           />
-          <button className="absolute right-2 p-1.5 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors cursor-pointer">
+          <button
+          type="button"
+          title="Use my current location"
+          onClick={() => {
+            if (!navigator.geolocation) return;
+
+            navigator.geolocation.getCurrentPosition(
+              (pos) => {
+                const { latitude, longitude } = pos.coords;
+                onLocationChange(
+                  `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`
+                );
+              },
+              () => {
+                onLocationChange("");
+              },
+            );
+          }}
+          className="absolute right-2 p-1.5 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors cursor-pointer">
             <Target className="h-4 w-4" />
           </button>
         </div>
@@ -66,24 +101,46 @@ export function SetLocation({ onSubmit }) {
             </div>
             <div>
               <p className="text-xs font-bold text-slate-900">
-                22 Oak Street, North District
+                {location || "Not set yet"}
               </p>
               <p className="text-[10px] text-slate-400">
                 Selected report location
               </p>
             </div>
           </div>
+          {location && (
           <CheckCircle2 className="h-4 w-4 text-slate-800" />
+          )}
         </div>
+        {/* Error Message */}
+        {error && (
+          <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-50 border border-rose-100 text-rose-700">
+            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+
+            <p className="text-xs font-medium">
+              {error}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Trigger Submit Handler */}
       <button
         onClick={onSubmit}
+        disabled={submitting || !canSubmit}
         className="w-full mt-6 py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-xs shadow-indigo-600/20 transition-all hover:shadow-md hover:shadow-indigo-600/30 flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
       >
+        {submitting ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Analyzing with AI…</span>
+          </>
+        ) : (
+          <>
         <span>Submit report</span>
         <ArrowRight className="h-4 w-4" />
+        </>
+        )}
       </button>
     </div>
   );

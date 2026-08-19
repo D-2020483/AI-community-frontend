@@ -33,286 +33,20 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StatusBadge, PriorityBadge } from "@/components/ui/Badge";
 import { downloadReport } from "@/lib/reportDownload";
 import { toast } from "react-hot-toast";
+import { apiRequest, getErrorMessage } from "@/lib/api";
+import { mapAdminReportFromApi } from "@/lib/adminMappers";
+import { markReportsSeen, REPORT_SEEN_KEYS } from "@/lib/reportBadges";
 
 const PAGE_SIZE = 7;
 
-const adminReports = [
-  {
-    id: "RPT-1052",
-    title: "Pothole on Oak Street",
-    image:
-      "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?q=80&w=800&auto=format&fit=crop",
-    category: "Roads & Infrastructure",
-    citizen: "Amara Okafor",
-    citizenEmail: "amara.okafor@example.com",
-    authority: "Public Works Dept.",
-    officer: "Samuel Johnson",
-    priority: "High",
-    status: "Assigned",
-    created: "24 Jul 2026",
-    updated: "24 Jul 2026",
-    district: "North District",
-    location: "Oak Street, North District",
-    lat: 4.8156,
-    lng: 7.0498,
-    aiCategory: "Roads & Infrastructure",
-    confidence: 92,
-    description:
-      "A large pothole has formed on the eastbound lane of Oak Street, causing drivers to swerve dangerously.",
-  },
-  {
-    id: "RPT-1051",
-    title: "Broken Water Main",
-    image:
-      "https://images.unsplash.com/photo-1581093458791-9d42e3c7e117?q=80&w=800&auto=format&fit=crop",
-    category: "Water Supply",
-    citizen: "James Adeleke",
-    citizenEmail: "j.adeleke@example.com",
-    authority: "Water Authority",
-    officer: "Ibrahim Musa",
-    priority: "Critical",
-    status: "In Progress",
-    created: "24 Jul 2026",
-    updated: "25 Jul 2026",
-    district: "Central District",
-    location: "Maple Street, Central",
-    lat: 4.8105,
-    lng: 7.0265,
-    aiCategory: "Water Supply",
-    confidence: 95,
-    description:
-      "A water main has burst and is flooding the street. Emergency repair required.",
-  },
-  {
-    id: "RPT-1050",
-    title: "Illegal Dumping",
-    image:
-      "https://images.unsplash.com/photo-1615880484746-a134be9a6ecf?q=80&w=800&auto=format&fit=crop",
-    category: "Waste Management",
-    citizen: "Ngozi Okafor",
-    citizenEmail: "ngozi.ok@example.com",
-    authority: "Sanitation Dept.",
-    officer: "Blessing Adamu",
-    priority: "Medium",
-    status: "Pending",
-    created: "23 Jul 2026",
-    updated: "23 Jul 2026",
-    district: "East District",
-    location: "Green Park, East",
-    lat: 4.802,
-    lng: 7.048,
-    aiCategory: "Waste Management",
-    confidence: 85,
-    description: "Garbage has been dumped illegally near the park entrance.",
-  },
-  {
-    id: "RPT-1049",
-    title: "Street Light Outage",
-    image:
-      "https://images.unsplash.com/photo-1493246507139-91e8fad9978e?q=80&w=800&auto=format&fit=crop",
-    category: "Street Lighting",
-    citizen: "Chiamaka Nnadi",
-    citizenEmail: "chiamaka.n@example.com",
-    authority: "Electrical Dept.",
-    officer: "Amina Yusuf",
-    priority: "Low",
-    status: "Resolved",
-    created: "23 Jul 2026",
-    updated: "25 Jul 2026",
-    district: "West District",
-    location: "River Road, West",
-    lat: 4.796,
-    lng: 7.018,
-    aiCategory: "Street Lighting",
-    confidence: 90,
-    description: "Street light has been out for several nights.",
-  },
-  {
-    id: "RPT-1048",
-    title: "Playground Damage",
-    image:
-      "https://images.unsplash.com/photo-1565538810643-b5bdb714032a?q=80&w=800&auto=format&fit=crop",
-    category: "Public Safety",
-    citizen: "Linda Ochieng",
-    citizenEmail: "l.ochieng@example.com",
-    authority: "Parks & Recreation",
-    officer: "David Okon",
-    priority: "Medium",
-    status: "Resolved",
-    created: "22 Jul 2026",
-    updated: "24 Jul 2026",
-    district: "Central District",
-    location: "Central Park, Central",
-    lat: 4.82,
-    lng: 7.032,
-    aiCategory: "Public Safety",
-    confidence: 89,
-    description: "Playground equipment damaged and posing safety risk.",
-  },
-  {
-    id: "RPT-1047",
-    title: "Traffic Signal Fault",
-    image:
-      "https://images.unsplash.com/photo-1549921296-3b0f9a35af35?q=80&w=800&auto=format&fit=crop",
-    category: "Traffic",
-    citizen: "Yusuf Abdullahi",
-    citizenEmail: "y.abdullahi@example.com",
-    authority: "Traffic Dept.",
-    officer: "Grace Eze",
-    priority: "High",
-    status: "In Progress",
-    created: "22 Jul 2026",
-    updated: "23 Jul 2026",
-    district: "South District",
-    location: "Main Intersection, South",
-    lat: 4.79,
-    lng: 7.035,
-    aiCategory: "Traffic",
-    confidence: 93,
-    description: "Traffic signal malfunctioning at main intersection.",
-  },
-  {
-    id: "RPT-1046",
-    title: "Drainage Blockage",
-    image:
-      "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=800&auto=format&fit=crop",
-    category: "Drainage",
-    citizen: "Kwame Mensah",
-    citizenEmail: "k.mensah@example.com",
-    authority: "Water Authority",
-    officer: "Ibrahim Musa",
-    priority: "Medium",
-    status: "Assigned",
-    created: "21 Jul 2026",
-    updated: "22 Jul 2026",
-    district: "Harbor District",
-    location: "Market Square, Harbor",
-    lat: 4.806,
-    lng: 7.012,
-    aiCategory: "Drainage",
-    confidence: 88,
-    description: "Drainage system blocked causing water accumulation.",
-  },
-  {
-    id: "RPT-1045",
-    title: "Overgrown Trees",
-    image:
-      "https://images.unsplash.com/photo-1523712999610-f77fbcfc3843?q=80&w=800&auto=format&fit=crop",
-    category: "Garden & Green",
-    citizen: "Tunde Olawale",
-    citizenEmail: "t.olawale@example.com",
-    authority: "Parks & Recreation",
-    officer: "David Okon",
-    priority: "Low",
-    status: "Pending",
-    created: "21 Jul 2026",
-    updated: "21 Jul 2026",
-    district: "North District",
-    location: "Birch Lane, North",
-    lat: 4.8156,
-    lng: 7.0498,
-    aiCategory: "Garden & Green",
-    confidence: 86,
-    description: "Trees have become overgrown and obstructing the footpath.",
-  },
-  {
-    id: "RPT-1044",
-    title: "Damaged Street Barrier",
-    image:
-      "https://images.unsplash.com/photo-1504307651254-35680f356dfd?q=80&w=800&auto=format&fit=crop",
-    category: "Roads & Infrastructure",
-    citizen: "Amara Okafor",
-    citizenEmail: "amara.okafor@example.com",
-    authority: "Public Works Dept.",
-    officer: "Samuel Johnson",
-    priority: "Low",
-    status: "Rejected",
-    created: "20 Jul 2026",
-    updated: "21 Jul 2026",
-    district: "Industrial Zone",
-    location: "Highway 12, Industrial",
-    lat: 4.788,
-    lng: 7.06,
-    aiCategory: "Roads & Infrastructure",
-    confidence: 87,
-    description: "Street barrier damaged and no longer providing protection.",
-  },
-  {
-    id: "RPT-1043",
-    title: "Water Supply Leak",
-    image:
-      "https://images.unsplash.com/photo-1581093458791-9d42e3c7e117?q=80&w=800&auto=format&fit=crop",
-    category: "Water Supply",
-    citizen: "Ngozi Okafor",
-    citizenEmail: "ngozi.ok@example.com",
-    authority: "Water Authority",
-    officer: "Ibrahim Musa",
-    priority: "High",
-    status: "In Progress",
-    created: "20 Jul 2026",
-    updated: "22 Jul 2026",
-    district: "Central District",
-    location: "Elm Street, Central",
-    lat: 4.8105,
-    lng: 7.0265,
-    aiCategory: "Water Supply",
-    confidence: 91,
-    description:
-      "Water pipe leaking causing water loss and potential road damage.",
-  },
-  {
-    id: "RPT-1042",
-    title: "Pothole on Oak Street",
-    image:
-      "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?q=80&w=800&auto=format&fit=crop",
-    category: "Roads & Infrastructure",
-    citizen: "Amara Okafor",
-    citizenEmail: "amara.okafor@example.com",
-    authority: "Public Works Dept.",
-    officer: "Samuel Johnson",
-    priority: "High",
-    status: "Assigned",
-    created: "24 Jul 2026",
-    updated: "24 Jul 2026",
-    district: "North District",
-    location: "Oak Street, North District",
-    lat: 4.8156,
-    lng: 7.0498,
-    aiCategory: "Roads & Infrastructure",
-    confidence: 92,
-    description:
-      "A large pothole on the eastbound lane causing drivers to swerve.",
-  },
-  {
-    id: "RPT-1041",
-    title: "Garbage Dumping Near Park",
-    image:
-      "https://images.unsplash.com/photo-1615880484746-a134be9a6ecf?q=80&w=800&auto=format&fit=crop",
-    category: "Waste Management",
-    citizen: "Chiamaka Nnadi",
-    citizenEmail: "chiamaka.n@example.com",
-    authority: "Sanitation Dept.",
-    officer: "Blessing Adamu",
-    priority: "Medium",
-    status: "Resolved",
-    created: "19 Jul 2026",
-    updated: "22 Jul 2026",
-    district: "East District",
-    location: "Green Park, East",
-    lat: 4.802,
-    lng: 7.048,
-    aiCategory: "Waste Management",
-    confidence: 85,
-    description: "Waste dumped near the park entrance attracting pests.",
-  },
+const DEFAULT_STATUSES = [
+  "Pending",
+  "Assigned",
+  "In Progress",
+  "Resolved",
+  "Rejected",
 ];
-
-const categories = [...new Set(adminReports.map((r) => r.category))];
-const authorities = [...new Set(adminReports.map((r) => r.authority))];
-const officers = [...new Set(adminReports.map((r) => r.officer))];
-const districts = [...new Set(adminReports.map((r) => r.district))];
-const statuses = [...new Set(adminReports.map((r) => r.status))];
-const priorities = [...new Set(adminReports.map((r) => r.priority))];
+const DEFAULT_PRIORITIES = ["Critical", "High", "Medium", "Low"];
 
 const timelineConfig = [
   { key: "Reported", icon: FileText, color: "bg-slate-100 text-slate-500" },
@@ -368,30 +102,6 @@ const mockComments = [
   },
 ];
 
-const mockTimeline = [
-  {
-    key: "Reported",
-    desc: "Report submitted by citizen",
-    time: "24 Jul 2026 · 09:12 AM",
-  },
-  {
-    key: "Assigned",
-    desc: "Assigned to Public Works Dept.",
-    time: "24 Jul 2026 · 10:40 AM",
-  },
-  {
-    key: "Accepted",
-    desc: "Authority accepted the report",
-    time: "24 Jul 2026 · 11:05 AM",
-  },
-  {
-    key: "In Progress",
-    desc: "Field crew dispatched",
-    time: "25 Jul 2026 · 08:05 AM",
-  },
-  { key: "Resolved", desc: "Issue resolved", time: "25 Jul 2026 · 04:30 PM" },
-  { key: "Closed", desc: "Report closed by citizen", time: "—" },
-];
 
 export default function ReportsManagement() {
   const [loading, setLoading] = useState(true);
@@ -405,16 +115,60 @@ export default function ReportsManagement() {
     priority: "All Priority",
     dateRange: "All Dates",
   });
-  const [reports, setReports] = useState(adminReports);
+  const [reports, setReports] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [viewReport, setViewReport] = useState(null);
   const [deleteReport, setDeleteReport] = useState(null);
   const [assigning, setAssigning] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 700);
-    return () => clearTimeout(t);
+    let cancelled = false;
+    const loadReports = async () => {
+      try {
+        setLoading(true);
+        const data = await apiRequest("/admin/reports");
+        if (!cancelled) {
+          const mapped = (data.data?.reports || []).map(mapAdminReportFromApi);
+          setReports(mapped);
+          markReportsSeen(
+            mapped.map((report) => report.id),
+            REPORT_SEEN_KEYS.admin,
+          );
+        }
+      } catch (error) {
+        if (!cancelled) {
+          toast.error(getErrorMessage(error.data, "Failed to load reports"));
+          setReports([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    loadReports();
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  const categories = useMemo(
+    () => [...new Set(reports.map((r) => r.category).filter(Boolean))],
+    [reports],
+  );
+  const authorities = useMemo(
+    () => [...new Set(reports.map((r) => r.authority).filter((v) => v && v !== "—"))],
+    [reports],
+  );
+  const officers = useMemo(
+    () => [...new Set(reports.map((r) => r.officer).filter((v) => v && v !== "—"))],
+    [reports],
+  );
+  const districts = useMemo(
+    () => [...new Set(reports.map((r) => r.district).filter((v) => v && v !== "—"))],
+    [reports],
+  );
+  const statuses = DEFAULT_STATUSES;
+  const priorities = DEFAULT_PRIORITIES;
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -465,11 +219,46 @@ export default function ReportsManagement() {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleDelete = () => {
-    if (!deleteReport) return;
-    setReports((prev) => prev.filter((r) => r.id !== deleteReport.id));
-    toast.success(`Report ${deleteReport.id} deleted`);
-    setDeleteReport(null);
+  const handleDelete = async () => {
+    if (!deleteReport || busy) return;
+    setBusy(true);
+    try {
+      await apiRequest(`/admin/reports/${deleteReport.id}`, {
+        method: "DELETE",
+      });
+      setReports((prev) => prev.filter((r) => r.id !== deleteReport.id));
+      if (viewReport?.id === deleteReport.id) setViewReport(null);
+      toast.success(`Report ${deleteReport.id} deleted`);
+      setDeleteReport(null);
+    } catch (error) {
+      toast.error(getErrorMessage(error.data, error.message || "Failed to delete report"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSaveAssignment = async () => {
+    if (!viewReport || assigning) return;
+    setAssigning(true);
+    try {
+      const data = await apiRequest(`/admin/reports/${viewReport.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          status: viewReport.status,
+          priority: viewReport.priority,
+          assignedAuthority: viewReport.authority === "—" ? "" : viewReport.authority,
+          category: viewReport.category,
+        }),
+      });
+      const updated = mapAdminReportFromApi(data.data.report);
+      setReports((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+      setViewReport(updated);
+      toast.success(`Report ${updated.id} updated successfully`);
+    } catch (error) {
+      toast.error(getErrorMessage(error.data, error.message || "Failed to update report"));
+    } finally {
+      setAssigning(false);
+    }
   };
 
   const handleDownload = (r) => {
@@ -725,8 +514,12 @@ export default function ReportsManagement() {
           {filtered.length === 0 && (
             <EmptyState
               icon={Search}
-              title="No reports found"
-              description="Try adjusting your search or filters to find reports."
+              title={reports.length === 0 ? "No reports yet" : "No reports found"}
+              description={
+                reports.length === 0
+                  ? "Citizen-submitted reports will appear here."
+                  : "Try adjusting your search or filters to find reports."
+              }
             />
           )}
 
@@ -812,12 +605,18 @@ export default function ReportsManagement() {
         {viewReport && (
           <div className="space-y-6">
             {/* Image Header */}
-            <div className="relative h-56 rounded-2xl overflow-hidden">
+            <div className="relative h-56 rounded-2xl overflow-hidden bg-slate-100">
+              {viewReport.image ? (
               <img
                 src={viewReport.image}
                 alt={viewReport.title}
                 className="w-full h-full object-cover"
               />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-100 to-violet-100 text-indigo-600 text-sm font-semibold">
+                  No photo attached
+                </div>
+              )}
               <div className="absolute inset-0 bg-gradient-to-t from-slate-900/70 via-transparent to-transparent" />
               <div className="absolute bottom-4 left-5 right-5 flex items-center gap-2">
                 <span className="px-2.5 py-1 rounded-lg bg-slate-900/60 backdrop-blur-md text-white text-[10px] font-bold border border-white/10">
@@ -925,7 +724,9 @@ export default function ReportsManagement() {
                         })
                       }
                     >
-                      {authorities.map((a) => (
+                      {["Unassigned", viewReport.authority, ...authorities]
+                        .filter((v, i, arr) => v && arr.indexOf(v) === i)
+                        .map((a) => (
                         <option key={a}>{a}</option>
                       ))}
                     </select>
@@ -947,7 +748,9 @@ export default function ReportsManagement() {
                         })
                       }
                     >
-                      {officers.map((o) => (
+                      {["Unassigned", viewReport.officer, ...officers]
+                        .filter((v, i, arr) => v && arr.indexOf(v) === i)
+                        .map((o) => (
                         <option key={o}>{o}</option>
                       ))}
                     </select>
@@ -997,15 +800,7 @@ export default function ReportsManagement() {
                 </div>
               </div>
               <button
-                onClick={() => {
-                  setAssigning(true);
-                  setTimeout(() => {
-                    setAssigning(false);
-                    toast.success(
-                      `Report ${viewReport.id} updated successfully`,
-                    );
-                  }, 800);
-                }}
+                onClick={handleSaveAssignment}
                 disabled={assigning}
                 className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
               >
@@ -1014,6 +809,7 @@ export default function ReportsManagement() {
             </div>
 
             {/* Location Map */}
+            {viewReport.lat && viewReport.lng ? (
             <div>
               <h5 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
                 Location Map
@@ -1033,6 +829,11 @@ export default function ReportsManagement() {
                 </MapContainer>
               </div>
             </div>
+            ) : (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
+                Map coordinates are not available for this report. Location: {viewReport.location}
+              </div>
+            )}
 
             {/* Citizen Info */}
             <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
@@ -1046,6 +847,7 @@ export default function ReportsManagement() {
                 <div className="h-11 w-11 rounded-full bg-gradient-to-br from-indigo-100 to-violet-100 text-indigo-600 flex items-center justify-center font-bold text-sm">
                   {viewReport.citizen
                     .split(" ")
+                    .filter(Boolean)
                     .map((n) => n[0])
                     .slice(0, 2)
                     .join("")}
@@ -1161,6 +963,7 @@ export default function ReportsManagement() {
         tone="danger"
         onConfirm={handleDelete}
         onCancel={() => setDeleteReport(null)}
+        loading={busy}
       />
     </AdminLayout>
   );

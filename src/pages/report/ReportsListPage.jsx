@@ -19,17 +19,17 @@ import {
 } from "lucide-react";
 import { ResponsiveSidebar } from "@/layouts/citizen/ResponsiveSidebar";
 import { HeaderNavbar } from "@/layouts/citizen/HeaderNavbar";
-import { getReportById } from "@/data/reportsData";
 import { downloadReport } from "@/lib/reportDownload";
 import ReportDetailsModal from "@/components/reports/ReportDetailsModal";
 import {
-  reportsData,
   reportSuggestions,
   reportCategories,
   reportStatuses,
   reportPriorities,
   dateRanges,
 } from "@/data/reportsData";
+import { getMyReports } from "@/lib/reportService";
+import { markReportsSeen, REPORT_SEEN_KEYS } from "@/lib/reportBadges";
 
 const PAGE_SIZE = 6;
 
@@ -76,7 +76,7 @@ function getPriorityBadge(priority) {
   };
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold border ${config[priority]}`}
+      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold border ${config[priority] || config.Low}`}
     >
       <AlertCircle className="h-3 w-3" />
       {priority}
@@ -102,6 +102,8 @@ function Highlight({ text, query }) {
 export default function ReportsPage() {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [reportsData, setReportsData] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -112,6 +114,27 @@ export default function ReportsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [detailsReport, setDetailsReport] = useState(null);
   const searchRef = useRef(null);
+
+  useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        setLoading(true);
+        const reports = await getMyReports();
+        setReportsData(reports);
+        markReportsSeen(
+          reports.map((report) => report.id),
+          REPORT_SEEN_KEYS.citizen,
+        );
+      } catch (error) {
+        console.error("Error fetching reports:", error);
+        toast.error(error?.message || "Failed to load reports.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchReports();
+  }, []);
 
   const suggestions = useMemo(() => {
     if (!query.trim()) return [];
@@ -134,10 +157,10 @@ export default function ReportsPage() {
     return reportsData.filter((r) => {
       const matchesQuery =
         !q ||
-        r.title.toLowerCase().includes(q) ||
-        r.id.toLowerCase().includes(q) ||
-        r.location.toLowerCase().includes(q) ||
-        r.category.toLowerCase().includes(q);
+        r.title?.toLowerCase().includes(q) ||
+        r.id?.toLowerCase().includes(q) ||
+        r.location?.toLowerCase().includes(q) ||
+        r.category?.toLowerCase().includes(q);
       const matchesStatus = status === "All Status" || r.status === status;
       const matchesCategory =
         category === "All Categories" || r.category === category;
@@ -147,7 +170,7 @@ export default function ReportsPage() {
         matchesQuery && matchesStatus && matchesCategory && matchesPriority
       );
     });
-  }, [query, status, category, priority]);
+  }, [reportsData, query, status, category, priority]);
 
   const totalPages = Math.max(1, Math.ceil(filteredReports.length / PAGE_SIZE));
   const paginated = filteredReports.slice(
@@ -200,7 +223,7 @@ export default function ReportsPage() {
 
       <div className="flex-1 flex flex-col min-w-0">
         <HeaderNavbar
-          title="Reports"
+          title="My reports"
           onMenuToggle={() => setMobileMenuOpen(true)}
         />
 
@@ -208,7 +231,7 @@ export default function ReportsPage() {
           {/* Header */}
           <div className="animate-fade-in">
             <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
-              Reports
+              My reports
             </h2>
             <p className="text-xs text-slate-500 mt-1">
               View, search and track all the reports you've submitted.
@@ -331,80 +354,100 @@ export default function ReportsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50 text-xs font-medium text-slate-700">
-                  {paginated.map((item) => (
-                    <tr
-                      key={item.id}
-                      className="hover:bg-slate-50/60 transition-colors"
-                    >
-                      <td className="px-5 py-3.5 font-bold text-slate-900">
-                        {item.id}
-                      </td>
-                      <td className="px-5 py-3.5 text-slate-700">
-                        {item.title}
-                      </td>
-                      <td className="px-5 py-3.5 text-slate-600">
-                        {item.category}
-                      </td>
-                      <td className="px-5 py-3.5 whitespace-nowrap text-slate-500">
-                        {item.date}
-                      </td>
-                      <td className="px-5 py-3.5 text-slate-600">
-                        <span className="flex items-center gap-1">
-                          <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                          {item.location}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        {getPriorityBadge(item.priority)}
-                      </td>
-                      <td className="px-5 py-3.5">
-                        {getStatusBadge(item.status)}
-                      </td>
-                      <td className="px-5 py-3.5 text-slate-600">
-                        <span className="flex items-center gap-1">
-                          <Building2 className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                          {item.authority}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            title="View Details"
-                            onClick={() =>
-                              setDetailsReport(getReportById(item.id))
-                            }
-                            className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </button>
-                          <button
-                            title="Track Progress"
-                            onClick={() => {
-                              toast(
-                                "Opening live tracker for " + item.id + "…",
-                              );
-                              navigate(`/track-report/${item.id}`, {
-                                state: { report: getReportById(item.id) },
-                              });
-                            }}
-                            className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
-                          >
-                            <Activity className="h-4 w-4" />
-                          </button>
-                          <button
-                            title="Download Report"
-                            onClick={() => {
-                              downloadReport(getReportById(item.id));
-                              toast.success("Report downloaded successfully.");
-                            }}
-                            className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                          >
-                            <Download className="h-4 w-4" />
-                          </button>
-                        </div>
+                  {loading ? (
+                    <tr>
+                      <td
+                        colSpan="9"
+                        className="text-center py-8 text-slate-400"
+                      >
+                        Loading your reports...
                       </td>
                     </tr>
-                  ))}
+                  ) : paginated.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan="9"
+                        className="text-center py-8 text-slate-400"
+                      >
+                        No reports found.
+                      </td>
+                    </tr>
+                  ) : (
+                    paginated.map((item) => (
+                      <tr
+                        key={item.id}
+                        className="hover:bg-slate-50/60 transition-colors"
+                      >
+                        <td className="px-5 py-3.5 font-bold text-slate-900">
+                          {item.id}
+                        </td>
+                        <td className="px-5 py-3.5 text-slate-700">
+                          {item.title}
+                        </td>
+                        <td className="px-5 py-3.5 text-slate-600">
+                          {item.category}
+                        </td>
+                        <td className="px-5 py-3.5 whitespace-nowrap text-slate-500">
+                          {item.date}
+                        </td>
+                        <td className="px-5 py-3.5 text-slate-600">
+                          <span className="flex items-center gap-1">
+                            <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                            {item.location}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          {getPriorityBadge(item.priority)}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          {getStatusBadge(item.status)}
+                        </td>
+                        <td className="px-5 py-3.5 text-slate-600">
+                          <span className="flex items-center gap-1">
+                            <Building2 className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                            {item.authority}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              title="View Details"
+                              onClick={() => setDetailsReport(item)}
+                              className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                            <button
+                              title="Track Progress"
+                              onClick={() => {
+                                toast(
+                                  "Opening live tracker for " + item.id + "…",
+                                );
+                                navigate(`/track-report/${item.id}`, {
+                                  state: { report: item },
+                                });
+                              }}
+                              className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                            >
+                              <Activity className="h-4 w-4" />
+                            </button>
+                            <button
+                              title="Download Report"
+                              onClick={() => {
+                                downloadReport(item);
+                                toast.success(
+                                  "Report downloaded successfully.",
+                                );
+                              }}
+                              className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                            >
+                              <Download className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -463,19 +506,6 @@ export default function ReportsPage() {
               </div>
             </div>
           </div>
-
-          {/* Empty state */}
-          {filteredReports.length === 0 && (
-            <div className="text-center py-12 text-slate-400">
-              <Search className="h-10 w-10 mx-auto mb-3 text-slate-300" />
-              <p className="text-sm font-semibold text-slate-600">
-                No reports found
-              </p>
-              <p className="text-xs mt-1">
-                Try adjusting your search or filters.
-              </p>
-            </div>
-          )}
         </main>
 
         {/* Details Modal */}

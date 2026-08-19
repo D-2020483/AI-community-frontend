@@ -29,6 +29,7 @@ import { AuthorityLayout } from "@/layouts/authority/AuthorityLayout";
 import { StatCard } from "@/components/authority/StatCard";
 import { ChartCard, chartTooltipStyle } from "@/components/authority/ChartCard";
 import { useAuthority } from "@/context/AuthorityContext";
+import { useAuth } from "@/context/AuthContext";
 
 const STATUS_COLORS = {
   Pending: "#f59e0b",
@@ -84,13 +85,24 @@ function buildMonthlyData(reports) {
 
 export default function AuthorityDashboard() {
   const { authority, reports } = useAuthority();
-
+  const { user } = useAuth();
   const newReports = reports.length;
   const highPriority = reports.filter((r) => r.priority === "High").length;
   const pendingAssignments = reports.filter(
     (r) => r.status === "Pending" && !r.assignedOfficer,
   ).length;
   const resolved = reports.filter((r) => r.status === "Resolved").length;
+
+
+  // fallback chain checking authority context and auth context
+   const displayName =
+   authority?.authorityName ||
+   authority?.name ||
+   user?.authority?.name ||
+   user?.fullName ||
+   "Authority";
+
+   const displayType = authority?.authorityType || authority?.type || "";
 
   // Reports by category for the bar chart.
   const categoryData = useMemo(() => {
@@ -148,11 +160,10 @@ export default function AuthorityDashboard() {
               Authority Overview
             </span>
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mt-3">
-              Welcome, {authority?.authorityName}
+              Welcome, {displayName}
             </h2>
             <p className="text-sm text-white/90 mt-1">
-              Here's what's happening across {authority?.authorityType} reports
-              today.
+            Here's what's happening across {displayType ? `${displayType} ` : ""}reports today.
             </p>
           </div>
           <div className="flex items-center gap-3">

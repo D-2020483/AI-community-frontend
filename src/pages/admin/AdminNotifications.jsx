@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from "react";
+﻿import React, { useState, useMemo, useEffect } from "react";
 import {
   Search,
   CheckCheck,
@@ -21,11 +21,15 @@ import { AdminLayout } from "@/layouts/admin/AdminLayout";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import {
-  adminNotifications,
-  adminNotificationCategories,
-} from "@/data/adminData";
 import { toast } from "react-hot-toast";
+import { apiRequest, getErrorMessage } from "@/lib/api";
+import {
+  applyAdminNotificationState,
+  markAdminNotificationRead,
+  markAllAdminNotificationsRead,
+  deleteAdminNotification,
+  clearAdminNotifications,
+} from "@/lib/adminNotifications";
 
 const typeConfig = {
   "new-report": {
@@ -77,12 +81,49 @@ const typeConfig = {
 
 const filters = ["All", "Read", "Unread", "Today", "This Week"];
 
+const adminNotificationCategories = [
+  { key: "all", label: "All", color: "bg-slate-500" },
+  { key: "new-report", label: "New Report", color: "bg-indigo-500" },
+  { key: "critical", label: "Critical", color: "bg-rose-500" },
+  { key: "resolved", label: "Resolved", color: "bg-emerald-500" },
+  { key: "authority-created", label: "Authority", color: "bg-violet-500" },
+  { key: "officer-created", label: "Officer", color: "bg-sky-500" },
+  { key: "overdue", label: "Overdue", color: "bg-orange-500" },
+];
+
 export default function AdminNotifications() {
-  const [notifications, setNotifications] = useState(adminNotifications);
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
   const [activeCategory, setActiveCategory] = useState("all");
   const [deleteAllOpen, setDeleteAllOpen] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        setLoading(true);
+        const data = await apiRequest("/admin/notifications");
+        if (!cancelled) {
+          setNotifications(
+            applyAdminNotificationState(data.data?.notifications || []),
+          );
+        }
+      } catch (error) {
+        if (!cancelled) {
+          toast.error(getErrorMessage(error.data, "Failed to load notifications"));
+          setNotifications([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -97,8 +138,7 @@ export default function AdminNotifications() {
       if (activeFilter === "Read") matchFilter = n.read;
       if (activeFilter === "Unread") matchFilter = !n.read;
       if (activeFilter === "Today") matchFilter = n.date === "Today";
-      if (activeFilter === "This Week")
-        matchFilter = ["Today", "Yesterday", "2 days ago"].includes(n.date);
+      if (activeFilter === "This Week") matchFilter = n.diffDays <= 7;
       return matchQ && matchCategory && matchFilter;
     });
   }, [notifications, query, activeFilter, activeCategory]);
@@ -106,22 +146,26 @@ export default function AdminNotifications() {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const markAsRead = (id) => {
+    markAdminNotificationRead(id);
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
     );
   };
 
   const markAllAsRead = () => {
+    markAllAdminNotificationsRead(notifications.map((n) => n.id));
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     toast.success("All notifications marked as read");
   };
 
   const deleteNotification = (id) => {
+    deleteAdminNotification(id);
     setNotifications((prev) => prev.filter((n) => n.id !== id));
     toast.success("Notification deleted");
   };
 
   const handleDeleteAll = () => {
+    clearAdminNotifications(notifications.map((n) => n.id));
     setNotifications([]);
     setDeleteAllOpen(false);
     toast.success("All notifications cleared");
@@ -212,7 +256,7 @@ export default function AdminNotifications() {
       {/* Notifications List */}
       <div className="space-y-3 animate-slide-up">
         {filtered.map((n) => {
-          const cfg = typeConfig[n.type];
+          const cfg = typeConfig[n.type] || typeConfig["new-report"];
           const Icon = cfg.icon;
           return (
             <div
@@ -279,7 +323,7 @@ export default function AdminNotifications() {
         {filtered.length === 0 && (
           <EmptyState
             icon={Inbox}
-            title="No notifications"
+            title={loading ? "Loading notifications" : "No notifications"}
             description="Try adjusting your search or filters."
           />
         )}

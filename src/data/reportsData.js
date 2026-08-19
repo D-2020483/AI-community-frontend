@@ -155,6 +155,7 @@ export const reportCategories = [
 export const reportStatuses = [
   "All Status",
   "Pending",
+  "Assigned",
   "In Progress",
   "Resolved",
   "Rejected",

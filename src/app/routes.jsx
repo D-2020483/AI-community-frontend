@@ -5,6 +5,8 @@ import { RoleGuard } from "@/app/guards/RoleGuard";
 // Auth Pages
 const Login = lazy(() => import("@/pages/auth/Login"));
 const Register = lazy(() => import("@/pages/auth/Register"));
+const AcceptInvite = lazy(() => import("@/pages/auth/AcceptInvite"));
+const ChangePassword = lazy(() => import("@/pages/auth/ChangePassword"));
 
 // Citizen Pages
 const CitizenDashboard = lazy(() => import("@/pages/citizen/CitizenDashboard"));
@@ -87,6 +89,8 @@ export default function AppRoutes() {
         {/* Auth Routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/accept-invite" element={<AcceptInvite />} />
+        <Route path="/change-password" element={<ChangePassword />} />
 
         {/* Citizen Routes (role: citizen) */}
         <Route
@@ -102,6 +106,14 @@ export default function AppRoutes() {
           element={
             <RoleGuard roles={["citizen"]}>
               <ReportIssue />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/track-report"
+          element={
+            <RoleGuard roles={["citizen"]}>
+              <TrackReport />
             </RoleGuard>
           }
         />

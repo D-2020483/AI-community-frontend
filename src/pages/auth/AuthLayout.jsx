@@ -74,7 +74,7 @@ export function AuthLayout({ children }) {
         <div className="w-full max-w-md space-y-6">
           {/* Role Preview Bar */}
           <div className="flex items-center justify-between rounded-xl bg-white p-1 text-xs font-medium text-slate-500 shadow-sm ring-1 ring-slate-200/70">
-            <span className="px-3 text-slate-400">Preview</span>
+            <span className="px-3 text-slate-400">Sign in as</span>
             <div className="flex gap-1">
               {previewRoles.map((r) => (
                 <button

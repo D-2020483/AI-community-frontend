@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -38,6 +38,8 @@ import {
   generateTemporaryPassword,
 } from "@/lib/emailTemplate";
 import { toast } from "react-hot-toast";
+import { apiRequest, getErrorMessage } from "@/lib/api";
+import { mapAuthorityFromApi, mapOfficerFromApi } from "@/lib/adminMappers";
 
 const districtCenters = [
   { name: "North District", lat: 4.8156, lng: 7.0498, population: 182000 },
@@ -54,7 +56,7 @@ const inputClass =
 const labelClass = "text-xs font-bold text-slate-700 block mb-1.5";
 
 function OfficerAvatar({ officer }) {
-  const initials = `${officer.firstName[0]}${officer.lastName[0]}`;
+  const initials = `${officer.firstName?.[0] || ""}${officer.lastName?.[0] || "O"}`;
   return (
     <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-100 to-violet-100 text-indigo-600 flex items-center justify-center font-bold text-xs ring-2 ring-indigo-50">
       {initials}
@@ -65,12 +67,9 @@ function OfficerAvatar({ officer }) {
 export default function AuthorityDetails() {
   const { authorityId } = useParams();
   const navigate = useNavigate();
-  const [authority, setAuthority] = useState(
-    authoritiesData.find((a) => a.id === authorityId) || authoritiesData[0],
-  );
-  const [officers, setOfficers] = useState(
-    officersData.filter((o) => o.authorityId === authority.id),
-  );
+  const [loading, setLoading] = useState(true);
+  const [authority, setAuthority] = useState(null);
+  const [officers, setOfficers] = useState([]);
   const [addOfficerOpen, setAddOfficerOpen] = useState(false);
   const [editOfficer, setEditOfficer] = useState(null);
   const [deactivateOfficer, setDeactivateOfficer] = useState(null);
@@ -86,7 +85,36 @@ export default function AuthorityDetails() {
     photo: null,
   });
 
-  const coveredDistricts = authority.coverage.split(",").map((d) => d.trim());
+  useEffect(() => {
+    let cancelled = false;
+    const loadAuthority = async () => {
+      try {
+        setLoading(true);
+        const data = await apiRequest(`/admin/authorities/${authorityId}`);
+        if (cancelled) return;
+        const raw = data.data.authority;
+        setAuthority(mapAuthorityFromApi(raw));
+        setOfficers((raw.officers || []).map(mapOfficerFromApi));
+      } catch (error) {
+        if (!cancelled) {
+          toast.error(getErrorMessage(error.data, "Failed to load authority"));
+          setAuthority(null);
+          setOfficers([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    loadAuthority();
+    return () => {
+      cancelled = true;
+    };
+  }, [authorityId]);
+
+  const coveredDistricts = (authority?.coverage || "")
+    .split(",")
+    .map((d) => d.trim())
+    .filter(Boolean);
 
   const handleAddOfficer = (e) => {
     e.preventDefault();
@@ -145,37 +173,59 @@ export default function AuthorityDetails() {
     reader.readAsDataURL(file);
   };
 
-  const handleSaveOfficer = (e) => {
+  const handleSaveOfficer = async (e) => {
     e.preventDefault();
     if (!editOfficer) return;
-    setOfficers((prev) =>
-      prev.map((o) => (o.id === editOfficer.id ? { ...o, ...editOfficer } : o)),
-    );
-    toast.success("Officer updated successfully");
-    setEditOfficer(null);
+    try {
+      const data = await apiRequest(`/admin/officers/${editOfficer.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          firstName: editOfficer.firstName,
+          lastName: editOfficer.lastName,
+          email: editOfficer.email,
+          phone: editOfficer.phone === "—" ? "" : editOfficer.phone,
+          position: editOfficer.position,
+          department: editOfficer.department,
+        }),
+      });
+      const updated = mapOfficerFromApi(data.data.officer);
+      setOfficers((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+      toast.success("Officer updated successfully");
+      setEditOfficer(null);
+    } catch (error) {
+      toast.error(getErrorMessage(error.data, error.message || "Failed to update officer"));
+    }
   };
 
-  const handleToggleOfficer = () => {
+  const handleToggleOfficer = async () => {
     if (!deactivateOfficer) return;
-    const newStatus =
-      deactivateOfficer.status === "Active" ? "Inactive" : "Active";
-    setOfficers((prev) =>
-      prev.map((o) =>
-        o.id === deactivateOfficer.id ? { ...o, status: newStatus } : o,
-      ),
-    );
-    toast.success(
-      `${deactivateOfficer.firstName} ${deactivateOfficer.lastName} ${newStatus === "Active" ? "activated" : "deactivated"}`,
-    );
-    setDeactivateOfficer(null);
+    try {
+      const data = await apiRequest(
+        `/admin/officers/${deactivateOfficer.id}/status`,
+        { method: "PATCH" },
+      );
+      const updated = mapOfficerFromApi(data.data.officer);
+      setOfficers((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+      toast.success(
+        `${updated.firstName} ${updated.lastName} ${updated.status === "Active" ? "activated" : "deactivated"}`,
+      );
+      setDeactivateOfficer(null);
+    } catch (error) {
+      toast.error(getErrorMessage(error.data, error.message || "Failed to update status"));
+    }
   };
 
-  const handleDeleteOfficer = () => {
+  const handleDeleteOfficer = async () => {
     if (!deleteOfficer) return;
-    setOfficers((prev) => prev.filter((o) => o.id !== deleteOfficer.id));
-    setAuthority((prev) => ({ ...prev, officers: prev.officers - 1 }));
-    toast.success("Officer removed from the authority");
-    setDeleteOfficer(null);
+    try {
+      await apiRequest(`/admin/officers/${deleteOfficer.id}`, { method: "DELETE" });
+      setOfficers((prev) => prev.filter((o) => o.id !== deleteOfficer.id));
+      setAuthority((prev) => ({ ...prev, officers: Math.max(0, prev.officers - 1) }));
+      toast.success("Officer removed from the authority");
+      setDeleteOfficer(null);
+    } catch (error) {
+      toast.error(getErrorMessage(error.data, error.message || "Failed to delete officer"));
+    }
   };
 
   const handleResetPassword = () => {
@@ -194,11 +244,34 @@ export default function AuthorityDetails() {
     setResetOfficer(null);
   };
 
-  const resolutionRate = Math.round(
-    (authority.resolvedReports /
-      (authority.resolvedReports + authority.activeReports + 200)) *
-      100,
-  );
+  const resolutionRate = authority
+    ? Math.round(
+        (authority.resolvedReports /
+          (authority.resolvedReports + authority.activeReports + 200)) *
+          100,
+      )
+    : 0;
+
+  if (loading || !authority) {
+    return (
+      <AdminLayout title="Authority Details" subtitle="Loading authority">
+        <button
+          onClick={() => navigate("/admin/authorities")}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-indigo-600 transition-colors cursor-pointer"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to authorities
+        </button>
+        {!loading && (
+          <EmptyState
+            icon={Building2}
+            title="Authority not found"
+            description="This authority may have been deleted."
+          />
+        )}
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout title="Authority Details" subtitle={authority.name}>

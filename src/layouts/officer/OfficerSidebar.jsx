@@ -10,10 +10,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useOfficer } from "@/context/OfficerContext";
 import { useAuth } from "@/context/AuthContext";
-
-const ROLE = "officer";
 
 const navSections = [
   {
@@ -38,17 +35,17 @@ const navSections = [
 export function OfficerSidebar({ isOpen, onClose }) {
   const navigate = useNavigate();
   const location = useLocation();
-const { officer, logoutOfficer } = useOfficer();
-  const { setRole } = useAuth();
+  const { user, logout } = useAuth();
 
-const isActive = (path) => {
+  const officerName = user?.fullName || "Officer";
+
+  const isActive = (path) => {
     if (path === "/officer/overview") return location.pathname === path;
     return location.pathname.startsWith(path);
   };
 
-  const handleLogout = () => {
-    logoutOfficer();
-    setRole(ROLE);
+  const handleLogout = async () => {
+    await logout();
     navigate("/login");
   };
 
@@ -83,10 +80,10 @@ const isActive = (path) => {
             <UserRound className="h-4 w-4 shrink-0" />
             <div className="min-w-0">
               <p className="text-[11px] font-bold leading-tight">
-                {officer?.name || "Field Officer"}
+                {officerName}
               </p>
               <p className="text-[9px] text-white/80 truncate">
-                {officer?.department || "Field Operations"}
+                {user?.officer?.department || user?.officer?.authority?.name || "Field Operations"}
               </p>
             </div>
           </div>
@@ -145,19 +142,14 @@ const isActive = (path) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center font-bold text-xs ring-2 ring-indigo-100">
-              {(officer?.name || "FO")
-                .split(" ")
-                .map((n) => n[0])
-                .slice(0, 2)
-                .join("")
-                .toUpperCase()}
+              {officerName.slice(0, 2).toUpperCase()}
             </div>
             <div className="flex flex-col min-w-0">
               <span className="text-xs font-bold text-slate-900 truncate">
-                {officer?.name || "Field Officer"}
+                {officerName}
               </span>
               <span className="text-[10px] text-slate-400 truncate">
-                {officer?.email || ""}
+                {user?.email || ""}
               </span>
             </div>
           </div>

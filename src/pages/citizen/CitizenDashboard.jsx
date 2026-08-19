@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect, useMemo } from "react";
 import { Plus, Sparkles } from "lucide-react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
@@ -8,17 +8,69 @@ import { StatsCards } from "@/components/citizen/StatsCards.jsx";
 import { RecentReportsTable } from "@/components/citizen/RecentReportsTable.jsx";
 import { CommunityImpactCard } from "@/components/citizen/CommunityImpactCard.jsx";
 import { statsData } from "@/data/citizenDashboardData.js";
-import { reportsData } from "@/data/reportsData.js";
+import { getMyReports } from "@/lib/reportService";
+import { useAuth } from "@/context/AuthContext";
+
+function buildCitizenStats(reports) {
+  const total = reports.length;
+  const pending = reports.filter((r) =>
+    ["Pending", "Assigned"].includes(r.status),
+  ).length;
+  const inProgress = reports.filter((r) => r.status === "In Progress").length;
+  const resolved = reports.filter((r) => r.status === "Resolved").length;
+
+  const values = {
+    total,
+    pending,
+    in_progress: inProgress,
+    resolved,
+  };
+
+  return statsData.map((stat) => ({
+    ...stat,
+    value: values[stat.id] ?? 0,
+  }));
+}
 
 export default function CitizenDashboard() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const citizenName = user?.fullName || "Citizen";
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [reports, setReports] = useState([]);
+  const [loadingReports, setLoadingReports] = useState(true);
 
   useEffect(() => {
-    toast.success("Welcome back, Amara! You're all caught up.", {
+    toast.success(`Welcome back, ${citizenName}! You're all caught up.`, {
       id: "citizen-welcome",
     });
+  }, [citizenName]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadReports = async () => {
+      try {
+        setLoadingReports(true);
+        const mine = await getMyReports();
+        if (!cancelled) setReports(mine);
+      } catch (error) {
+        if (!cancelled) {
+          setReports([]);
+          toast.error(error?.message || "Failed to load your reports.");
+        }
+      } finally {
+        if (!cancelled) setLoadingReports(false);
+      }
+    };
+
+    loadReports();
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  const dashboardStats = useMemo(() => buildCitizenStats(reports), [reports]);
 
   const handleReportIssue = () => {
     toast("Let's get your issue resolved. Start by telling us what happened.");
@@ -50,7 +102,7 @@ export default function CitizenDashboard() {
                   Citizen Overview
                 </span>
                 <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mt-3">
-                  Welcome back, Amara
+                  Welcome back, {citizenName}
                 </h2>
                 <p className="text-sm text-indigo-100/90 mt-1">
                   Together, we're building a safer, better community.
@@ -68,13 +120,16 @@ export default function CitizenDashboard() {
 
           {/* Top Metric Cards */}
           <div className="animate-fade-in">
-            <StatsCards stats={statsData} />
+            <StatsCards stats={dashboardStats} />
           </div>
 
           {/* Main Content Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
             <div className="lg:col-span-2 animate-slide-up">
-              <RecentReportsTable reports={reportsData.slice(0, 5)} />
+              <RecentReportsTable
+                reports={reports.slice(0, 5)}
+                loading={loadingReports}
+              />
             </div>
             <div
               className="animate-slide-up"

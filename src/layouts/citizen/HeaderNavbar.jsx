@@ -1,9 +1,16 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Menu, Bell, Search, ChevronDown, UserRound } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { useMyReports } from "@/hooks/useMyReports";
+import { unreadNotificationCount } from "@/lib/citizenNotifications";
 
 export function HeaderNavbar({ title, onMenuToggle }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { reports } = useMyReports();
+  const unreadCount = unreadNotificationCount(reports);
+  const citizenName = user?.fullName || "Citizen";
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const searchRef = useRef(null);
@@ -22,7 +29,7 @@ export function HeaderNavbar({ title, onMenuToggle }) {
     { label: "Overview", to: "/dashboard" },
     { label: "Report issue", to: "/report-issue" },
     { label: "My reports", to: "/reports" },
-    { label: "Track report", to: "/track-report/RPT-1042" },
+    { label: "Track report", to: "/track-report" },
     { label: "Notifications", to: "/notifications" },
     { label: "Profile", to: "/profile" },
   ];
@@ -95,10 +102,9 @@ export function HeaderNavbar({ title, onMenuToggle }) {
           className="relative p-2 rounded-xl text-slate-500 hover:bg-slate-50 border border-slate-200/80 transition-all hover:shadow-sm cursor-pointer"
         >
           <Bell className="h-4 w-4" />
-          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white" />
-          <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-bold h-4 min-w-4 rounded-full flex items-center justify-center px-1 ring-2 ring-white">
-            3
-          </span>
+          {unreadCount > 0 && (
+            <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-blue-500 ring-2 ring-white" />
+          )}
         </button>
 
         {/* User Badge */}
@@ -108,10 +114,10 @@ export function HeaderNavbar({ title, onMenuToggle }) {
           </div>
           <div className="hidden lg:block text-left">
             <p className="text-xs font-bold text-slate-900 leading-tight">
-              Citizen User
+              {citizenName}
             </p>
             <p className="text-[10px] text-slate-400 leading-tight">
-              North District
+              {user?.district || "North District"}
             </p>
           </div>
           <ChevronDown className="hidden lg:block h-3.5 w-3.5 text-slate-400" />

@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from "react";
+﻿import React, { useState, useMemo, useEffect } from "react";
 import {
   Calendar,
   ChevronDown,
@@ -6,10 +6,7 @@ import {
   TrendingUp,
   Clock,
   Timer,
-  Gauge,
   CheckCircle2,
-  Users,
-  Building2,
   Flame,
   MapPin,
 } from "lucide-react";
@@ -35,20 +32,9 @@ import {
   PolarAngleAxis,
   PolarRadiusAxis,
 } from "recharts";
-import { MapContainer, TileLayer, CircleMarker } from "react-leaflet";
 import { AdminLayout } from "@/layouts/admin/AdminLayout";
-import {
-  monthlyReports,
-  yearlyComparison,
-  reportsByCategory,
-  reportsByDistrict,
-  reportsByAuthority,
-  authorityPerformance,
-  officerPerformance,
-  activeCitizens,
-  activeAuthorities,
-  topCategories,
-} from "@/data/adminData";
+import { apiRequest, getErrorMessage } from "@/lib/api";
+import { toast } from "react-hot-toast";
 
 const CATEGORY_COLORS = {
   "Roads & Infrastructure": "#4f46e5",
@@ -72,25 +58,6 @@ const DISTRICT_COLORS = [
   "#e11d48",
 ];
 
-const heatmapPoints = [
-  { lat: 4.8156, lng: 7.0498, intensity: 0.9, label: "North District" },
-  { lat: 4.8105, lng: 7.0265, intensity: 0.8, label: "Central District" },
-  { lat: 4.802, lng: 7.048, intensity: 0.7, label: "East District" },
-  { lat: 4.796, lng: 7.018, intensity: 0.5, label: "West District" },
-  { lat: 4.79, lng: 7.035, intensity: 0.45, label: "South District" },
-  { lat: 4.788, lng: 7.06, intensity: 0.3, label: "Industrial Zone" },
-  { lat: 4.806, lng: 7.012, intensity: 0.2, label: "Harbor District" },
-];
-
-const radarData = [
-  { metric: "Response", score: 82 },
-  { metric: "Completion", score: 78 },
-  { metric: "Satisfaction", score: 88 },
-  { metric: "Efficiency", score: 74 },
-  { metric: "Coverage", score: 90 },
-  { metric: "Timeliness", score: 85 },
-];
-
 const cellColors = (d) => CATEGORY_COLORS[d.category] || "#94a3b8";
 
 const tooltipStyle = {
@@ -103,39 +70,81 @@ const tooltipStyle = {
 export default function AnalyticsDashboard() {
   const [period, setPeriod] = useState("This Year");
   const [sortOaa, setSortOaa] = useState("completionRate");
+  const [insights, setInsights] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadInsights = async (nextPeriod = period) => {
+    try {
+      setLoading(true);
+      const data = await apiRequest(
+        `/admin/insights?period=${encodeURIComponent(nextPeriod)}`,
+      );
+      setInsights(data.data);
+    } catch (error) {
+      toast.error(getErrorMessage(error.data, "Failed to load analytics"));
+      setInsights(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadInsights(period);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [period]);
+
+  const monthlyReports = insights?.monthlyReports || [];
+  const yearlyComparison = insights?.yearlyComparison || [];
+  const reportsByCategory = insights?.reportsByCategory || [];
+  const reportsByDistrict = insights?.reportsByDistrict || [];
+  const authorityPerformance = insights?.authorityPerformance || [];
+  const officerPerformance = insights?.officerPerformance || [];
+  const activeCitizens = insights?.activeCitizens || [];
+  const activeAuthorities = insights?.activeAuthorities || [];
+  const topCategories = insights?.topCategories || [];
+  const radarData = insights?.radarData || [];
+  const totals = insights?.totals || {
+    reports: 0,
+    resolutionRate: 0,
+    avgResolutionDays: 0,
+    avgResponseHours: 0,
+    monthlyGrowth: 0,
+  };
 
   const sortedAuthorities = useMemo(() => {
-    return [...authorityPerformance].sort((a, b) => b[sortOaa] - a[sortOaa]);
-  }, [sortOaa]);
+    return [...authorityPerformance].sort(
+      (a, b) => (b[sortOaa] || 0) - (a[sortOaa] || 0),
+    );
+  }, [sortOaa, authorityPerformance]);
 
   const counterCards = [
     {
       label: "Live Reports",
-      value: "28,943",
+      value: String(totals.reports),
       icon: Flame,
       cls: "bg-rose-50 text-rose-600",
-      sub: "+12.6% vs last year",
+      sub: `${totals.monthlyGrowth >= 0 ? "+" : ""}${totals.monthlyGrowth}% vs previous period`,
     },
     {
       label: "Avg Response Time",
-      value: "1.8 hrs",
+      value: totals.avgResponseHours ? `${totals.avgResponseHours} hrs` : "—",
       icon: Clock,
       cls: "bg-indigo-50 text-indigo-600",
-      sub: "-14% improved",
+      sub: "Based on resolved reports",
     },
     {
       label: "Avg Completion Time",
-      value: "3.2 days",
+      value: totals.avgResolutionDays ? `${totals.avgResolutionDays} days` : "—",
       icon: Timer,
       cls: "bg-amber-50 text-amber-600",
-      sub: "-8.7% improved",
+      sub: "Created to resolved",
     },
     {
-      label: "Satisfaction Score",
-      value: "4.4 / 5",
+      label: "Resolution Rate",
+      value: `${totals.resolutionRate}%`,
       icon: CheckCircle2,
       cls: "bg-emerald-50 text-emerald-600",
-      sub: "+0.3 this quarter",
+      sub: loading ? "Refreshing…" : "Of reports in this period",
     },
   ];
 
@@ -164,7 +173,7 @@ export default function AnalyticsDashboard() {
           </div>
         </div>
         <button
-          onClick={() => window.location.reload()}
+          onClick={() => loadInsights(period)}
           className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-200 text-slate-600 text-xs font-semibold rounded-xl hover:bg-slate-50 transition-all cursor-pointer"
         >
           <RefreshCw className="h-3.5 w-3.5" /> Refresh
@@ -402,8 +411,8 @@ export default function AnalyticsDashboard() {
                 className="pl-3 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-semibold text-slate-700 appearance-none focus:outline-none focus:border-indigo-600 cursor-pointer"
               >
                 <option value="completionRate">Sort by Completion</option>
-                <option value="satisfaction">Sort by Satisfaction</option>
                 <option value="avgResolution">Sort by Resolution</option>
+                <option value="reports">Sort by Reports</option>
                 <option value="score">Sort by Score</option>
               </select>
               <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400 pointer-events-none" />
@@ -444,8 +453,8 @@ export default function AnalyticsDashboard() {
                   name={
                     sortOaa === "avgResolution"
                       ? "Avg Resolution (days)"
-                      : sortOaa === "satisfaction"
-                        ? "Satisfaction Score"
+                      : sortOaa === "reports"
+                        ? "Reports"
                         : sortOaa === "score"
                           ? "Performance Score"
                           : "Completion Rate (%)"
@@ -510,39 +519,40 @@ export default function AnalyticsDashboard() {
           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
             <div>
               <h3 className="text-base font-bold text-slate-900">
-                Location Heatmap
+                Location density
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                Report density by district
+                Report volume by district or location
               </p>
             </div>
             <MapPin className="h-4 w-4 text-slate-300" />
           </div>
-          <div className="h-80 relative z-0">
-            <MapContainer
-              center={[4.802, 7.03]}
-              zoom={11}
-              scrollWheelZoom={false}
-              className="h-full w-full"
-            >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              {heatmapPoints.map((p) => (
-                <CircleMarker
-                  key={p.label}
-                  center={[p.lat, p.lng]}
-                  radius={8 + p.intensity * 16}
-                  pathOptions={{
-                    color: "#4f46e5",
-                    fillColor: "#4f46e5",
-                    fillOpacity: 0.15 + p.intensity * 0.4,
-                    weight: 1.5,
-                  }}
-                />
-              ))}
-            </MapContainer>
+          <div className="p-6 space-y-3">
+            {reportsByDistrict.length === 0 ? (
+              <p className="text-xs text-slate-400">No location data yet.</p>
+            ) : (
+              reportsByDistrict.slice(0, 8).map((d) => {
+                const max = reportsByDistrict[0]?.value || 1;
+                return (
+                  <div key={d.district}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-semibold text-slate-700 truncate">
+                        {d.district}
+                      </span>
+                      <span className="text-xs font-bold text-slate-900">
+                        {d.value}
+                      </span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-indigo-500 rounded-full"
+                        style={{ width: `${Math.round((d.value / max) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 
@@ -616,8 +626,9 @@ export default function AnalyticsDashboard() {
             {activeCitizens.map((c, i) => (
               <div key={c.name} className="flex items-center gap-3">
                 <div className="h-7 w-7 rounded-full bg-gradient-to-br from-indigo-100 to-violet-100 text-indigo-600 flex items-center justify-center text-[10px] font-bold shrink-0">
-                  {c.name
+                  {(c.name || "?")
                     .split(" ")
+                    .filter(Boolean)
                     .map((n) => n[0])
                     .slice(0, 2)
                     .join("")}
@@ -642,8 +653,9 @@ export default function AnalyticsDashboard() {
             {activeAuthorities.map((a, i) => (
               <div key={a.name} className="flex items-center gap-3">
                 <div className="h-7 w-7 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0">
-                  {a.name
+                  {(a.name || "?")
                     .split(" ")
+                    .filter(Boolean)
                     .map((n) => n[0])
                     .slice(0, 2)
                     .join("")}
@@ -705,7 +717,8 @@ export default function AnalyticsDashboard() {
               Resolution rate trending upward
             </div>
             <p className="text-[10px] text-slate-400 mt-1">
-              +2.4% vs previous period
+              {totals.monthlyGrowth >= 0 ? "+" : ""}
+              {totals.monthlyGrowth}% vs previous period
             </p>
           </div>
         </div>
