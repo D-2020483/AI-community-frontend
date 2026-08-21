@@ -19,6 +19,7 @@ import { useAuth } from "@/context/AuthContext";
 import { apiRequest } from "@/lib/api";
 import { applyAdminNotificationState } from "@/lib/adminNotifications";
 import { unseenReportCount } from "@/lib/reportBadges";
+import { useInboxTick } from "@/hooks/useInboxTick";
 
 const navSections = [
   {
@@ -60,6 +61,7 @@ export function AdminSidebar({ isOpen, onClose }) {
   const location = useLocation();
   const { logout, user } = useAuth();
   const [badges, setBadges] = useState({ reports: 0, notifications: 0 });
+  const inboxTick = useInboxTick();
 
   useEffect(() => {
     let cancelled = false;
@@ -89,12 +91,10 @@ export function AdminSidebar({ isOpen, onClose }) {
     };
 
     loadBadges();
-    const timer = setInterval(loadBadges, 30_000);
     return () => {
       cancelled = true;
-      clearInterval(timer);
     };
-  }, [location.pathname]);
+  }, [location.pathname, inboxTick]);
 
   const isActive = (path) => {
     if (path === "/admin/dashboard") return location.pathname === path;

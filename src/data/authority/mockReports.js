@@ -606,6 +606,7 @@ export const authorityReports = rawReports.map((r) => ({
 export const reportStatusOptions = [
   "Pending",
   "Assigned",
+  "Accepted",
   "In Progress",
   "Resolved",
 ];

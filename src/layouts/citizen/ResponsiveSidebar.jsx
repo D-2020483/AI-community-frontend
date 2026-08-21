@@ -4,7 +4,6 @@ import {
   Plus,
   FileText,
   Bell,
-  User,
   Settings,
   LogOut,
   ShieldCheck,
@@ -19,6 +18,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useMyReports } from "@/hooks/useMyReports";
 import { unreadNotificationCount } from "@/lib/citizenNotifications";
 import { unseenReportCount, REPORT_SEEN_KEYS } from "@/lib/reportBadges";
+import { useInboxTick } from "@/hooks/useInboxTick";
 
 const navSections = [
   {
@@ -34,7 +34,7 @@ const navSections = [
     label: "Account",
     items: [
       { name: "Notifications", icon: Bell, path: "/notifications", badgeKey: "notifications" },
-      { name: "Profile", icon: User, path: "/profile" },
+      { name: "Settings", icon: Settings, path: "/settings" },
     ],
   },
 ];
@@ -44,6 +44,7 @@ export function ResponsiveSidebar({ isOpen, onClose }) {
   const location = useLocation();
   const { logout, user } = useAuth();
   const { reports } = useMyReports();
+  useInboxTick();
   const unreadCount = location.pathname.startsWith("/notifications")
     ? 0
     : unreadNotificationCount(reports);
@@ -171,11 +172,17 @@ export function ResponsiveSidebar({ isOpen, onClose }) {
                 {citizenName}
               </span>
               <span className="text-[10px] text-slate-400 truncate">
-                {user?.district || "North District"}
+                {user?.district || user?.email || ""}
               </span>
             </div>
           </div>
-          <button className="text-slate-400 hover:text-slate-600 hover:bg-slate-50 p-1.5 rounded-lg transition-colors cursor-pointer">
+          <button
+            onClick={() => {
+              navigate("/settings");
+              if (onClose) onClose();
+            }}
+            className="text-slate-400 hover:text-slate-600 hover:bg-slate-50 p-1.5 rounded-lg transition-colors cursor-pointer"
+          >
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>

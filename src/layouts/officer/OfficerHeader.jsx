@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Menu, Bell, Search, ChevronDown, UserRound } from "lucide-react";
+import { Menu, Search, ChevronDown, UserRound } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useOfficer } from "@/context/OfficerContext";
+import { useAuth } from "@/context/AuthContext";
+import { NotificationBell } from "@/components/ui/NotificationBell";
 
-export function OfficerHeader({ title, subtitle, onMenuToggle }) {
+export function OfficerHeader({ title, subtitle, onMenuToggle, unreadCount = 0 }) {
   const navigate = useNavigate();
-  const { officer } = useOfficer();
+  const { user } = useAuth();
+  const officerName = user?.fullName || "Field Officer";
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const searchRef = useRef(null);
@@ -24,6 +26,8 @@ export function OfficerHeader({ title, subtitle, onMenuToggle }) {
     { label: "Overview", to: "/officer/overview" },
     { label: "Assigned tasks", to: "/officer/tasks" },
     { label: "Task updates", to: "/officer/updates" },
+    { label: "Notifications", to: "/officer/notifications" },
+    { label: "Settings", to: "/officer/settings" },
   ];
 
   const filtered = query.trim()
@@ -88,26 +92,22 @@ export function OfficerHeader({ title, subtitle, onMenuToggle }) {
           )}
         </div>
 
-        {/* Notifications */}
-        <button
-          onClick={() => navigate("/officer/overview")}
-          className="relative p-2 rounded-xl text-slate-500 hover:bg-slate-50 border border-slate-200/80 transition-all hover:shadow-sm cursor-pointer"
-        >
-          <Bell className="h-4 w-4" />
-          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white" />
-        </button>
+        <NotificationBell to="/officer/notifications" unreadCount={unreadCount} />
 
         {/* Officer Badge */}
-        <div className="flex items-center gap-2 cursor-pointer p-1 hover:bg-slate-50 rounded-xl transition-colors">
+        <div
+          onClick={() => navigate("/officer/settings")}
+          className="flex items-center gap-2 cursor-pointer p-1 hover:bg-slate-50 rounded-xl transition-colors"
+        >
           <div className="h-8 w-8 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center font-bold text-xs ring-2 ring-indigo-100">
             <UserRound className="h-4 w-4" />
           </div>
           <div className="hidden lg:block text-left">
             <p className="text-xs font-bold text-slate-900 leading-tight">
-              {officer?.name || "Field Officer"}
+              {officerName}
             </p>
             <p className="text-[10px] text-slate-400 leading-tight">
-              {officer?.role || "System"}
+              {user?.officer?.position || user?.officer?.authority?.name || "Officer account"}
             </p>
           </div>
           <ChevronDown className="hidden lg:block h-3.5 w-3.5 text-slate-400" />

@@ -13,7 +13,7 @@ export function useMyReports() {
       try {
         setLoading(true);
         setError(null);
-        const mine = await getMyReports();
+        const mine = await getMyReports({ force: true });
         if (!cancelled) setReports(mine);
       } catch (err) {
         if (!cancelled) {
@@ -26,8 +26,10 @@ export function useMyReports() {
     };
 
     load();
+    const timer = setInterval(load, 15000);
     return () => {
       cancelled = true;
+      clearInterval(timer);
     };
   }, []);
 

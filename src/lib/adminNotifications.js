@@ -1,3 +1,5 @@
+import { emitInboxChanged } from "@/lib/inboxEvents";
+
 const READ_KEY = "civiclink_admin_notification_read";
 const DELETED_KEY = "civiclink_admin_notification_deleted";
 
@@ -16,6 +18,7 @@ function writeIdSet(key, ids) {
   } catch {
     /* ignore */
   }
+  emitInboxChanged();
 }
 
 export function applyAdminNotificationState(items = []) {

@@ -1,14 +1,17 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Menu, Bell, Search, ChevronDown, UserRound } from "lucide-react";
+import { Menu, Search, ChevronDown, UserRound } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useMyReports } from "@/hooks/useMyReports";
 import { unreadNotificationCount } from "@/lib/citizenNotifications";
+import { useInboxTick } from "@/hooks/useInboxTick";
+import { NotificationBell } from "@/components/ui/NotificationBell";
 
 export function HeaderNavbar({ title, onMenuToggle }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { reports } = useMyReports();
+  useInboxTick();
   const unreadCount = unreadNotificationCount(reports);
   const citizenName = user?.fullName || "Citizen";
   const [searchOpen, setSearchOpen] = useState(false);
@@ -31,7 +34,7 @@ export function HeaderNavbar({ title, onMenuToggle }) {
     { label: "My reports", to: "/reports" },
     { label: "Track report", to: "/track-report" },
     { label: "Notifications", to: "/notifications" },
-    { label: "Profile", to: "/profile" },
+    { label: "Settings", to: "/settings" },
   ];
 
   const filtered = query.trim()
@@ -96,19 +99,13 @@ export function HeaderNavbar({ title, onMenuToggle }) {
           )}
         </div>
 
-        {/* Notifications */}
-        <button
-          onClick={() => navigate("/notifications")}
-          className="relative p-2 rounded-xl text-slate-500 hover:bg-slate-50 border border-slate-200/80 transition-all hover:shadow-sm cursor-pointer"
-        >
-          <Bell className="h-4 w-4" />
-          {unreadCount > 0 && (
-            <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-blue-500 ring-2 ring-white" />
-          )}
-        </button>
+        <NotificationBell to="/notifications" unreadCount={unreadCount} />
 
         {/* User Badge */}
-        <div className="flex items-center gap-2 cursor-pointer p-1 hover:bg-slate-50 rounded-xl transition-colors">
+        <div
+          onClick={() => navigate("/settings")}
+          className="flex items-center gap-2 cursor-pointer p-1 hover:bg-slate-50 rounded-xl transition-colors"
+        >
           <div className="h-8 w-8 rounded-full bg-gradient-to-br from-sky-100 to-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs ring-1 ring-indigo-100">
             <UserRound className="h-4 w-4" />
           </div>
@@ -117,7 +114,7 @@ export function HeaderNavbar({ title, onMenuToggle }) {
               {citizenName}
             </p>
             <p className="text-[10px] text-slate-400 leading-tight">
-              {user?.district || "North District"}
+              {user?.district || user?.email || ""}
             </p>
           </div>
           <ChevronDown className="hidden lg:block h-3.5 w-3.5 text-slate-400" />

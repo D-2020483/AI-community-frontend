@@ -11,15 +11,23 @@ import { OfficerLayout } from "@/layouts/officer/OfficerLayout";
 import { SummaryCard } from "@/components/officer/SummaryCard";
 import { TaskListItem } from "@/components/officer/TaskListItem";
 import { useOfficer } from "@/context/OfficerContext";
+import { useAuth } from "@/context/AuthContext";
 
 export default function OfficerDashboard() {
-  const { officer, tasks } = useOfficer();
+  const { tasks, tasksLoading, tasksError } = useOfficer();
+  const { user } = useAuth();
+  const officerName = user?.fullName || "Field Officer";
 
   const assigned = tasks.length;
   const highPriority = tasks.filter((t) => t.priority === "High").length;
-  const completedToday = tasks.filter((t) => t.status === "Completed").length;
+  const startToday = new Date();
+  startToday.setHours(0, 0, 0, 0);
+  const completedToday = tasks.filter((t) => {
+    if (t.status !== "Completed") return false;
+    const updated = new Date(t.updatedAt);
+    return !Number.isNaN(updated.getTime()) && updated >= startToday;
+  }).length;
 
-  // Show the most recent tasks (excluding already-completed ones first).
   const sortedTasks = [...tasks].slice(0, 5);
 
   return (
@@ -38,7 +46,7 @@ export default function OfficerDashboard() {
               Officer Overview
             </span>
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight mt-3">
-              Welcome, {officer?.name}
+              Welcome, {officerName}
             </h2>
             <p className="text-sm text-white/90 mt-1">
               Here's what's on your plate today. Stay on top of your assigned
@@ -108,9 +116,23 @@ export default function OfficerDashboard() {
         </div>
 
         <div className="space-y-3">
-          {sortedTasks.map((task) => (
-            <TaskListItem key={task.id} task={task} />
-          ))}
+          {tasksLoading ? (
+            <p className="text-sm font-semibold text-slate-500 py-6 text-center">
+              Loading assigned tasks…
+            </p>
+          ) : tasksError ? (
+            <p className="text-sm font-semibold text-rose-600 py-6 text-center">
+              {tasksError}
+            </p>
+          ) : sortedTasks.length === 0 ? (
+            <p className="text-sm text-slate-400 py-6 text-center">
+              No reports have been assigned to you yet.
+            </p>
+          ) : (
+            sortedTasks.map((task) => (
+              <TaskListItem key={task.id} task={task} />
+            ))
+          )}
         </div>
       </div>
     </OfficerLayout>

@@ -25,6 +25,7 @@ const AuthContext = createContext({
   login: async () => {},
   logout: async () => {},
   changePassword: async () => {},
+  updateProfile: async () => {},
 });
 
 export const AuthProvider = ({ children }) => {
@@ -145,6 +146,19 @@ export const AuthProvider = ({ children }) => {
     [],
   );
 
+  const updateProfile = useCallback(async (payload) => {
+    const data = await apiRequest("/auth/me", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+    const nextUser = data.data?.user;
+    if (nextUser) {
+      setStoredUser(nextUser);
+      setUser(nextUser);
+    }
+    return nextUser;
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       const token = getToken();
@@ -172,6 +186,7 @@ export const AuthProvider = ({ children }) => {
         login,
         logout,
         changePassword,
+        updateProfile,
       }}
     >
       {children}

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FileText } from "lucide-react";
 import { AuthorityLayout } from "@/layouts/authority/AuthorityLayout";
@@ -6,10 +6,12 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { FilterBar } from "@/components/authority/FilterBar";
 import { ReportTable } from "@/components/authority/ReportTable";
 import { useAuthority } from "@/context/AuthorityContext";
+import { markReportsSeen, REPORT_SEEN_KEYS } from "@/lib/reportBadges";
 
 export default function AuthorityReports() {
   const navigate = useNavigate();
-  const { reports } = useAuthority();
+  const { reports, reportsLoading, reportsError, refreshReports } =
+    useAuthority();
 
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All Categories");
@@ -17,6 +19,18 @@ export default function AuthorityReports() {
   const [status, setStatus] = useState("All Status");
   const [location, setLocation] = useState("All Locations");
   const [sort, setSort] = useState("newest");
+
+  useEffect(() => {
+    refreshReports();
+  }, [refreshReports]);
+
+  useEffect(() => {
+    if (!reports.length) return;
+    markReportsSeen(
+      reports.map((report) => report.id),
+      REPORT_SEEN_KEYS.authority,
+    );
+  }, [reports]);
 
   // Derive filter options from the authority's own reports.
   const categories = useMemo(
@@ -27,7 +41,11 @@ export default function AuthorityReports() {
     () => [
       "All Locations",
       ...Array.from(
-        new Set(reports.map((r) => r.location.split(",")[0].trim())),
+        new Set(
+          reports
+            .map((r) => (r.location || "").split(",")[0].trim())
+            .filter(Boolean),
+        ),
       ),
     ],
     [reports],
@@ -38,10 +56,10 @@ export default function AuthorityReports() {
     let list = reports.filter((r) => {
       const matchQuery =
         !q ||
-        r.title.toLowerCase().includes(q) ||
-        r.id.toLowerCase().includes(q) ||
-        r.location.toLowerCase().includes(q) ||
-        r.category.toLowerCase().includes(q);
+        r.title?.toLowerCase().includes(q) ||
+        r.id?.toLowerCase().includes(q) ||
+        r.location?.toLowerCase().includes(q) ||
+        r.category?.toLowerCase().includes(q);
       const matchCategory =
         category === "All Categories" || r.category === category;
       const matchPriority =
@@ -90,9 +108,34 @@ export default function AuthorityReports() {
     >
       <PageHeader
         title="Reports"
-        subtitle={`${reports.length} reports assigned to your authority`}
+        subtitle={
+          reportsLoading
+            ? "Loading reports assigned to your authority"
+            : `${reports.length} reports assigned to your authority`
+        }
       />
 
+      {reportsError && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 flex items-center justify-between gap-3">
+          <span>{reportsError}</span>
+          <button
+            type="button"
+            onClick={refreshReports}
+            className="text-xs font-semibold text-rose-800 underline"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {reportsLoading && (
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm px-5 py-10 text-center text-sm text-slate-500">
+          Loading assigned reports…
+        </div>
+      )}
+
+      {!reportsLoading && (
+        <>
       <FilterBar
         query={query}
         onQueryChange={setQuery}
@@ -156,6 +199,8 @@ export default function AuthorityReports() {
             No reports found
           </p>
         </div>
+      )}
+        </>
       )}
     </AuthorityLayout>
   );

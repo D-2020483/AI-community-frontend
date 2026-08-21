@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   ArrowLeft,
@@ -29,10 +29,17 @@ const selectClass =
 export default function AuthorityReportDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { reports, officers, assignOfficer, updateReportStatus } =
+  const { reports, officers, assignOfficer, updateReportStatus, reportsLoading } =
     useAuthority();
 
-  const report = reports.find((r) => r.id === id);
+  const report = reports.find((r) => r.id === id || r.reportId === id);
+  const ai = report?.ai || {
+    detectedIssue: report?.title || "Civic issue reported",
+    category: report?.category || "",
+    priority: report?.priority || "Medium",
+    confidence: 0,
+  };
+  const citizenName = report?.citizen || "Citizen";
 
   // Local state for resolution controls.
   const [status, setStatus] = useState(report?.status || "Pending");
@@ -42,12 +49,18 @@ export default function AuthorityReportDetails() {
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    if (!report) return;
+    setStatus(report.status || "Pending");
+    setAssignedOfficer(report.assignedOfficer || "");
+  }, [report?.id, report?.status, report?.assignedOfficer, report?.timeline]);
+
   if (!report) {
     return (
       <AuthorityLayout title="Report Details" subtitle="Report not found">
         <div className="text-center py-16 text-slate-400">
           <p className="text-sm font-semibold text-slate-600">
-            Report not found
+            {reportsLoading ? "Loading report…" : "Report not found"}
           </p>
           <Link
             to="/authority/reports"
@@ -60,27 +73,29 @@ export default function AuthorityReportDetails() {
     );
   }
 
-  const handleAssign = (officerName) => {
-    assignOfficer(report.id, officerName);
-    setAssignedOfficer(officerName);
-    setStatus("Assigned");
-    setAssignModalOpen(false);
-    toast.success("Officer assigned successfully");
+  const handleAssign = async (officerName) => {
+    try {
+      await assignOfficer(report.id, officerName);
+      setAssignedOfficer(officerName);
+      setStatus("Assigned");
+      setAssignModalOpen(false);
+      toast.success("Officer assigned successfully");
+    } catch {
+      toast.error("Could not assign the officer.");
+    }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setSaving(true);
-    setTimeout(() => {
-      updateReportStatus(report.id, status);
-      if (assignedOfficer && status !== "Assigned") {
-        // Keep the officer if present; status drives the badge.
-      }
+    try {
+      await updateReportStatus(report.id, status, assignedOfficer);
+      toast.success("Changes saved. The citizen timeline was updated.");
+    } catch {
+      toast.error("Could not save the status change.");
+    } finally {
       setSaving(false);
-      toast.success("Changes saved successfully");
-    }, 600);
+    }
   };
-
-  const ai = report.ai;
 
   return (
     <AuthorityLayout title={report.id} subtitle={`Details for ${report.title}`}>
@@ -97,12 +112,18 @@ export default function AuthorityReportDetails() {
         <div className="lg:col-span-2 space-y-6">
           {/* Image + title */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden animate-fade-in">
-            <div className="relative h-56 sm:h-64">
+            <div className="relative h-56 sm:h-64 bg-slate-100">
+              {report.image ? (
               <img
                 src={report.image}
                 alt={report.title}
                 className="w-full h-full object-cover"
               />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-sm text-slate-400">
+                  No photo attached
+                </div>
+              )}
               <div className="absolute inset-0 bg-gradient-to-t from-slate-900/70 via-transparent to-transparent" />
               <div className="absolute bottom-4 left-5 right-5 flex items-center gap-2">
                 <span className="px-2.5 py-1 rounded-lg bg-slate-900/60 backdrop-blur-md text-white text-[10px] font-bold border border-white/10">
@@ -299,7 +320,7 @@ export default function AuthorityReportDetails() {
             </div>
             <div className="flex items-center gap-3">
               <div className="h-11 w-11 rounded-full bg-gradient-to-br from-indigo-100 to-violet-100 text-indigo-600 flex items-center justify-center font-bold text-sm">
-                {report.citizen
+                {citizenName
                   .split(" ")
                   .map((n) => n[0])
                   .slice(0, 2)
@@ -307,7 +328,7 @@ export default function AuthorityReportDetails() {
               </div>
               <div>
                 <p className="text-sm font-bold text-slate-900">
-                  {report.citizen}
+                  {citizenName}
                 </p>
                 <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
                   <MapPin className="h-3 w-3" /> {report.location}

@@ -119,6 +119,8 @@ export default function TrackReport() {
 
   useEffect(() => {
     loadReport();
+    const timer = setInterval(() => loadReport(true), 15000);
+    return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportId]);
 
@@ -139,6 +141,9 @@ export default function TrackReport() {
     date: passed.date || fromList.date || "",
     imageUrl: passed.imageUrl || fromList.imageUrl || null,
     createdAt: passed.createdAt || fromList.createdAt,
+    updatedAt: passed.updatedAt || fromList.updatedAt,
+    assignedOfficer: passed.assignedOfficer || fromList.assignedOfficer || "",
+    timeline: passed.timeline || fromList.timeline || [],
   });
 
   const hasReports = myReports.length > 0;
@@ -146,6 +151,42 @@ export default function TrackReport() {
   const currentStep = getStatusIndex(report.status);
 
   const activityFeed = useMemo(() => {
+    if (Array.isArray(report.timeline) && report.timeline.length) {
+      return report.timeline.map((event) => {
+        const label = String(event.label || "").toLowerCase();
+        let icon = FileText;
+        let color = "bg-slate-100 text-slate-600";
+        if (label.includes("ai") || label.includes("reported")) {
+          icon = Sparkles;
+          color = "bg-blue-50 text-blue-600";
+        }
+        if (label.includes("assigned") && !label.includes("officer")) {
+          icon = Building2;
+          color = "bg-indigo-50 text-indigo-600";
+        }
+        if (label.includes("officer")) {
+          icon = ShieldCheck;
+          color = "bg-sky-50 text-sky-600";
+        }
+        if (label.includes("progress")) {
+          icon = Wrench;
+          color = "bg-amber-50 text-amber-600";
+        }
+        if (label.includes("resolved")) {
+          icon = CheckCircle2;
+          color = "bg-emerald-50 text-emerald-600";
+        }
+        return {
+          icon,
+          color,
+          title: event.label,
+          desc: event.text,
+          time: event.time,
+          minStep: 0,
+        };
+      });
+    }
+
     const reportedAt = report.createdAt
       ? new Date(report.createdAt)
       : null;
@@ -219,7 +260,7 @@ export default function TrackReport() {
     }
 
     return items.filter((item) => currentStep >= item.minStep);
-  }, [currentStep, report.authority, report.category, report.createdAt, report.date]);
+  }, [currentStep, report.authority, report.category, report.createdAt, report.date, report.timeline]);
 
   return (
     <div className="flex min-h-screen bg-slate-50/60 font-sans">

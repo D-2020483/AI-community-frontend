@@ -1,11 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   ArrowLeft,
   MapPin,
   Calendar,
   User,
-  Sparkles,
   CheckCircle2,
   Upload,
   Send,
@@ -17,8 +16,10 @@ import { OfficerLayout } from "@/layouts/officer/OfficerLayout";
 import { TaskStatusBadge } from "@/components/officer/TaskStatusBadge";
 import { ActionCard } from "@/components/officer/ActionCard";
 import { MapPlaceholder } from "@/components/authority/MapPlaceholder";
+import { ActivityTimeline } from "@/components/authority/ActivityTimeline";
 import { useOfficer } from "@/context/OfficerContext";
 import { officerTaskStatusOptions } from "@/data/officer/mockOfficerTasks";
+import { getErrorMessage } from "@/lib/api";
 
 const priorityStyles = {
   High: "bg-rose-50 text-rose-600 border-rose-200",
@@ -32,15 +33,34 @@ const selectClass =
 export default function OfficerTaskDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { tasks, acceptTask, updateTaskStatus, addTaskUpdate } = useOfficer();
+  const {
+    tasks,
+    tasksLoading,
+    acceptTask,
+    updateTaskStatus,
+    addTaskUpdate,
+  } = useOfficer();
 
-  const task = tasks.find((t) => t.id === id);
+  const task = tasks.find((t) => t.id === id || t.reportId === id);
 
-  // Local state for resolution controls.
   const [status, setStatus] = useState(task?.status || "Assigned");
   const [updateText, setUpdateText] = useState("");
   const [fileName, setFileName] = useState("");
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (task?.status) setStatus(task.status);
+  }, [task?.id, task?.status]);
+
+  if (tasksLoading && !task) {
+    return (
+      <OfficerLayout title="Task Details" subtitle="Loading task">
+        <div className="text-center py-16 text-sm font-semibold text-slate-500">
+          Loading task…
+        </div>
+      </OfficerLayout>
+    );
+  }
 
   if (!task) {
     return (
@@ -60,44 +80,56 @@ export default function OfficerTaskDetails() {
 
   const priorityCls = priorityStyles[task.priority] || priorityStyles.Low;
 
-  const handleAccept = () => {
-    acceptTask(task.id);
-    setStatus("Accepted");
-    toast.success("Task accepted successfully");
+  const handleAccept = async () => {
+    try {
+      await acceptTask(task.id);
+      setStatus("Accepted");
+      toast.success("Task accepted. The authority and citizen timeline were updated.");
+    } catch (error) {
+      toast.error(getErrorMessage(error.data, "Could not accept this task."));
+    }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setSaving(true);
-    setTimeout(() => {
-      updateTaskStatus(task.id, status);
-      // Auto-accept when moving to In Progress/Completed if still Assigned.
+    try {
+      await updateTaskStatus(task.id, status);
+      toast.success("Status saved. Authority and citizen timelines were updated.");
+    } catch (error) {
+      toast.error(getErrorMessage(error.data, "Could not save the status change."));
+    } finally {
       setSaving(false);
-      toast.success("Task status updated successfully");
-    }, 600);
+    }
   };
 
   const handleUpload = (e) => {
     const file = e.target.files?.[0];
     if (file) {
       setFileName(file.name);
-      toast.success(`${file.name} attached to resolution update`);
+      toast.success(`${file.name} will be noted on this update`);
     }
   };
 
-  const handleSubmitUpdate = () => {
-    if (!updateText.trim() && !fileName) {
+  const handleSubmitUpdate = async () => {
+    const note = [updateText.trim(), fileName ? `Photo attached: ${fileName}` : ""]
+      .filter(Boolean)
+      .join(" ");
+    if (!note) {
       toast.error("Add a comment or attach a photo first");
       return;
     }
-    addTaskUpdate(task.id, updateText.trim() || "Photo attached");
-    setUpdateText("");
-    setFileName("");
-    toast.success("Resolution update submitted");
+    try {
+      await addTaskUpdate(task.id, note);
+      setUpdateText("");
+      setFileName("");
+      toast.success("Update posted to the authority and citizen timeline.");
+    } catch (error) {
+      toast.error(getErrorMessage(error.data, "Could not submit the update."));
+    }
   };
 
   return (
     <OfficerLayout title={task.id} subtitle={`Details for ${task.title}`}>
-      {/* Back button */}
       <button
         onClick={() => navigate("/officer/tasks")}
         className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-indigo-600 transition-colors cursor-pointer"
@@ -106,39 +138,47 @@ export default function OfficerTaskDetails() {
       </button>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        {/* Left column (2/3) */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Task header card */}
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 animate-fade-in">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
-                {task.id}
-              </span>
-              <span
-                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${priorityCls}`}
-              >
-                {task.priority} priority
-              </span>
-              <TaskStatusBadge status={task.status} />
-            </div>
-            <h2 className="text-xl font-bold text-slate-900 mt-3">
-              {task.title}
-            </h2>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-xs text-slate-500">
-              <span className="flex items-center gap-1.5">
-                <MapPin className="h-3.5 w-3.5 text-slate-400" />{" "}
-                {task.location}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Calendar className="h-3.5 w-3.5 text-slate-400" /> {task.date}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <User className="h-3.5 w-3.5 text-slate-400" /> {task.citizen}
-              </span>
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden animate-fade-in">
+            {task.image ? (
+              <div className="h-48 bg-slate-100">
+                <img
+                  src={task.image}
+                  alt={task.title}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ) : null}
+            <div className="p-6">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                  {task.id}
+                </span>
+                <span
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${priorityCls}`}
+                >
+                  {task.priority} priority
+                </span>
+                <TaskStatusBadge status={task.status} />
+              </div>
+              <h2 className="text-xl font-bold text-slate-900 mt-3">
+                {task.title}
+              </h2>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-xs text-slate-500">
+                <span className="flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5 text-slate-400" />{" "}
+                  {task.location}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5 text-slate-400" /> {task.date}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <User className="h-3.5 w-3.5 text-slate-400" /> {task.citizen}
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* Description */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 animate-slide-up">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
               Task description
@@ -148,7 +188,6 @@ export default function OfficerTaskDetails() {
             </p>
           </div>
 
-          {/* Navigation (map placeholder) */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 animate-slide-up">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">
               Navigation
@@ -160,7 +199,13 @@ export default function OfficerTaskDetails() {
             />
           </div>
 
-          {/* Task actions (left) */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 animate-slide-up">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">
+              Activity timeline
+            </h3>
+            <ActivityTimeline items={task.timeline || []} />
+          </div>
+
           <ActionCard
             title="Task actions"
             subtitle="Quick actions on this task"
@@ -193,16 +238,13 @@ export default function OfficerTaskDetails() {
           </ActionCard>
         </div>
 
-        {/* Right column (1/3) */}
         <div className="space-y-6">
-          {/* Resolution update */}
           <ActionCard
             title="Resolution update"
             subtitle="Post a field update to this task"
             icon={Send}
           >
             <div className="space-y-3">
-              {/* Dashed upload area */}
               <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-200 hover:border-indigo-300 rounded-xl p-5 cursor-pointer transition-colors bg-slate-50/50 hover:bg-indigo-50/30 text-center">
                 <Upload className="h-5 w-5 text-slate-400" />
                 <div>
@@ -221,7 +263,6 @@ export default function OfficerTaskDetails() {
                 />
               </label>
 
-              {/* Comment textarea */}
               <textarea
                 value={updateText}
                 onChange={(e) => setUpdateText(e.target.value)}
@@ -239,7 +280,6 @@ export default function OfficerTaskDetails() {
             </div>
           </ActionCard>
 
-          {/* Task status */}
           <ActionCard
             title="Task status"
             subtitle="Update the current status of this task"

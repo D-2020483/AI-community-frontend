@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Menu, Bell, Search, ChevronDown, ShieldCheck } from "lucide-react";
+import { Menu, Search, ChevronDown, ShieldCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { apiRequest } from "@/lib/api";
 import { applyAdminNotificationState } from "@/lib/adminNotifications";
+import { useInboxTick } from "@/hooks/useInboxTick";
+import { NotificationBell } from "@/components/ui/NotificationBell";
 
 export function AdminHeader({ title, subtitle, onMenuToggle }) {
   const navigate = useNavigate();
@@ -12,6 +14,7 @@ export function AdminHeader({ title, subtitle, onMenuToggle }) {
   const [query, setQuery] = useState("");
   const [unreadCount, setUnreadCount] = useState(0);
   const searchRef = useRef(null);
+  const inboxTick = useInboxTick();
 
   useEffect(() => {
     let cancelled = false;
@@ -30,7 +33,7 @@ export function AdminHeader({ title, subtitle, onMenuToggle }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [inboxTick]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -112,16 +115,7 @@ export function AdminHeader({ title, subtitle, onMenuToggle }) {
           )}
         </div>
 
-        {/* Notifications */}
-        <button
-          onClick={() => navigate("/admin/notifications")}
-          className="relative p-2 rounded-xl text-slate-500 hover:bg-slate-50 border border-slate-200/80 transition-all hover:shadow-sm cursor-pointer"
-        >
-          <Bell className="h-4 w-4" />
-          {unreadCount > 0 && (
-            <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-blue-500 ring-2 ring-white" />
-          )}
-        </button>
+        <NotificationBell to="/admin/notifications" unreadCount={unreadCount} />
 
         {/* Admin Badge */}
         <div className="flex items-center gap-2 cursor-pointer p-1 hover:bg-slate-50 rounded-xl transition-colors">

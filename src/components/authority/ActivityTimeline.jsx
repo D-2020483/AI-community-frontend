@@ -1,12 +1,15 @@
 import React from "react";
-import { CheckCircle2, GitBranch, Wrench, FileText } from "lucide-react";
+import { CheckCircle2, GitBranch, Wrench, FileText, UserCheck } from "lucide-react";
 
-// Map a timeline label to its icon + color.
 const iconMap = {
   Reported: { icon: FileText, color: "bg-slate-100 text-slate-500" },
   Assigned: { icon: GitBranch, color: "bg-indigo-50 text-indigo-600" },
+  "Officer Assigned": { icon: UserCheck, color: "bg-sky-50 text-sky-600" },
+  Accepted: { icon: UserCheck, color: "bg-emerald-50 text-emerald-600" },
   "In Progress": { icon: Wrench, color: "bg-amber-50 text-amber-600" },
   Resolved: { icon: CheckCircle2, color: "bg-emerald-50 text-emerald-600" },
+  Completed: { icon: CheckCircle2, color: "bg-indigo-50 text-indigo-600" },
+  Update: { icon: FileText, color: "bg-violet-50 text-violet-600" },
 };
 
 // Vertical activity timeline shown on the report details page.

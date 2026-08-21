@@ -1,9 +1,21 @@
-import React, { createContext, useContext, useState, useMemo } from "react";
-import { authorityReports } from "@/data/authority/mockReports";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { useAuth } from "@/context/AuthContext";
 import { authorityOfficers } from "@/data/authority/mockOfficers";
 import { findAuthorityByEmail } from "@/data/authority/mockAuthorities";
+import {
+  getAssignedReports,
+  getAuthorityOfficers,
+  mapComplaintToAuthorityView,
+  updateAssignedReport,
+} from "@/lib/reportService";
 
-// Keys used to persist the "logged-in" authority in localStorage.
 const STORAGE_KEY = "civiclink_authority";
 
 const AuthorityContext = createContext({
@@ -11,6 +23,9 @@ const AuthorityContext = createContext({
   loginAuthority: () => {},
   logoutAuthority: () => {},
   reports: [],
+  reportsLoading: false,
+  reportsError: null,
+  refreshReports: async () => {},
   officers: [],
   assignOfficer: () => {},
   updateReportStatus: () => {},
@@ -19,76 +34,146 @@ const AuthorityContext = createContext({
   updateOfficer: () => {},
 });
 
+function sessionFromUser(user) {
+  const record = user?.authority;
+  const mock = findAuthorityByEmail(user?.email || "") || {};
+  return {
+    authorityName: record?.name || user?.fullName || "Authority",
+    authorityType: record?.coverage || record?.district || mock.type || "",
+    email: user?.email || "",
+    shortCode: mock.shortCode || "",
+    color: mock.color || "from-emerald-600 to-teal-600",
+    categories: mock.categories || [],
+    phone: record?.phone || user?.phone || "",
+    address: record?.address || "",
+  };
+}
+
 export function AuthorityProvider({ children }) {
-  // Initialize authority from localStorage (simulated session).
-  const [authority, setAuthority] = useState(() => {
+  const { user, role, isAuthenticated } = useAuth();
+  const [reports, setReports] = useState([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [reportsError, setReportsError] = useState(null);
+  const [officers, setOfficers] = useState([]);
+
+  const authority = useMemo(() => {
+    if (!isAuthenticated || role !== "authority" || !user) return null;
+    const session = sessionFromUser(user);
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      return stored ? JSON.parse(stored) : null;
-    } catch (_) {
-      return null;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+    } catch {
+      /* ignore storage errors */
     }
+    return session;
+  }, [isAuthenticated, role, user]);
+
+  const loadReports = useCallback(async () => {
+    if (!authority) {
+      setReports([]);
+      setReportsError(null);
+      setReportsLoading(false);
+      return;
+    }
+
+    setReportsLoading(true);
+    setReportsError(null);
+
+    try {
+      const [assigned, staff] = await Promise.all([
+        getAssignedReports(),
+        getAuthorityOfficers().catch(() => []),
+      ]);
+      setReports(assigned);
+      setOfficers(
+        staff.length
+          ? staff
+          : authorityOfficers.filter(
+              (officer) =>
+                officer.authority === authority.authorityName ||
+                authority.authorityName
+                  ?.toLowerCase()
+                  .includes(String(officer.authority || "").toLowerCase()),
+            ),
+      );
+    } catch (error) {
+      setReports([]);
+      setReportsError(
+        error?.message || "Could not load reports assigned to this authority.",
+      );
+    } finally {
+      setReportsLoading(false);
+    }
+  }, [authority]);
+
+  useEffect(() => {
+    loadReports();
+  }, [loadReports]);
+
+  const loginAuthority = () => ({
+    success: false,
+    message: "Use the main login page to sign in as an authority.",
   });
 
-  // Reports state is module-level mock data repeated per authority.
-  const [reports, setReports] = useState(authorityReports);
-  const [officers, setOfficers] = useState(authorityOfficers);
-
-  const loginAuthority = (email, password) => {
-    const match = findAuthorityByEmail(email);
-    if (!match || match.password !== password) {
-      return { success: false, message: "Invalid email or password." };
-    }
-    const session = {
-      authorityName: match.name,
-      authorityType: match.type,
-      email: match.email,
-      shortCode: match.shortCode,
-      color: match.color,
-      categories: match.categories,
-    };
-    setAuthority(session);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-    return { success: true, authority: session };
-  };
-
   const logoutAuthority = () => {
-    setAuthority(null);
-    localStorage.removeItem(STORAGE_KEY);
+    setReports([]);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      /* ignore storage errors */
+    }
   };
 
-  // Reports filtered to the logged-in authority only.
-  const filteredReports = useMemo(() => {
-    if (!authority) return [];
-    return reports.filter((r) => r.authority === authority.authorityName);
-  }, [reports, authority]);
+  const persistResolution = async (reportId, payload) => {
+    try {
+      const updated = await updateAssignedReport(reportId, payload);
+      setReports((prev) =>
+        prev.map((report) =>
+          report.id === reportId
+            ? mapComplaintToAuthorityView({ ...report, ...updated })
+            : report,
+        ),
+      );
+      return updated;
+    } catch (error) {
+      await loadReports();
+      throw error;
+    }
+  };
 
-  // Officers filtered to the logged-in authority only.
-  const filteredOfficers = useMemo(() => {
-    if (!authority) return [];
-    return officers.filter((o) => o.authority === authority.authorityName);
-  }, [officers, authority]);
-
-  const assignOfficer = (reportId, officerName) => {
+  const assignOfficer = async (reportId, officerName) => {
     setReports((prev) =>
-      prev.map((r) =>
-        r.id === reportId
-          ? { ...r, assignedOfficer: officerName, status: "Assigned" }
-          : r,
+      prev.map((report) =>
+        report.id === reportId
+          ? { ...report, assignedOfficer: officerName, status: "Assigned" }
+          : report,
       ),
     );
+    return persistResolution(reportId, {
+      assignedOfficer: officerName,
+      status: "Assigned",
+    });
   };
 
-  const updateReportStatus = (reportId, status) => {
+  const updateReportStatus = async (reportId, status, assignedOfficer) => {
     setReports((prev) =>
-      prev.map((r) => (r.id === reportId ? { ...r, status } : r)),
+      prev.map((report) =>
+        report.id === reportId
+          ? {
+              ...report,
+              status,
+              assignedOfficer:
+                assignedOfficer === undefined
+                  ? report.assignedOfficer
+                  : assignedOfficer,
+            }
+          : report,
+      ),
     );
+    return persistResolution(reportId, { status, assignedOfficer });
   };
 
   const resolveReport = (reportId) => {
-    setReports((prev) =>
-      prev.map((r) => (r.id === reportId ? { ...r, status: "Resolved" } : r)),
-    );
+    updateReportStatus(reportId, "Resolved");
   };
 
   const addOfficer = (officer) => {
@@ -97,7 +182,9 @@ export function AuthorityProvider({ children }) {
 
   const updateOfficer = (officer) => {
     setOfficers((prev) =>
-      prev.map((o) => (o.id === officer.id ? { ...o, ...officer } : o)),
+      prev.map((item) =>
+        item.id === officer.id ? { ...item, ...officer } : item,
+      ),
     );
   };
 
@@ -105,9 +192,12 @@ export function AuthorityProvider({ children }) {
     authority,
     loginAuthority,
     logoutAuthority,
-    reports: filteredReports,
+    reports,
+    reportsLoading,
+    reportsError,
+    refreshReports: loadReports,
     allReports: reports,
-    officers: filteredOfficers,
+    officers,
     allOfficers: officers,
     assignOfficer,
     updateReportStatus,

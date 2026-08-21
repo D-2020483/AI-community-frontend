@@ -48,6 +48,8 @@ export function StatusBadge({ status }) {
     Pending: { v: "warning", label: "Pending" },
     "In Progress": { v: "info", label: "In Progress" },
     Assigned: { v: "primary", label: "Assigned" },
+    Accepted: { v: "success", label: "Accepted" },
+    Completed: { v: "violet", label: "Completed" },
     Resolved: { v: "success", label: "Resolved" },
     Rejected: { v: "danger", label: "Rejected" },
     Closed: { v: "default", label: "Closed" },

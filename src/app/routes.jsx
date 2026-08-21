@@ -54,6 +54,12 @@ const AuthorityOfficers = lazy(() =>
 const AuthorityAnalytics = lazy(() =>
   import("@/pages/authority/AuthorityAnalytics"),
 );
+const AuthorityNotifications = lazy(() =>
+  import("@/pages/workspace/WorkspaceNotifications"),
+);
+const AuthoritySettings = lazy(() =>
+  import("@/pages/workspace/WorkspaceSettings"),
+);
 
 // Officer Pages
 const OfficerDashboard = lazy(() => import("@/pages/officer/OfficerDashboard"));
@@ -65,6 +71,16 @@ const OfficerAssignedTasks = lazy(() =>
 );
 const OfficerTaskUpdates = lazy(() =>
   import("@/pages/officer/OfficerTaskUpdates"),
+);
+const OfficerNotifications = lazy(() =>
+  import("@/pages/workspace/WorkspaceNotifications").then((mod) => ({
+    default: mod.OfficerNotifications,
+  })),
+);
+const OfficerSettings = lazy(() =>
+  import("@/pages/workspace/WorkspaceSettings").then((mod) => ({
+    default: mod.OfficerSettings,
+  })),
 );
 
 // Fallback shown while lazy chunks load.
@@ -142,12 +158,16 @@ export default function AppRoutes() {
           }
         />
         <Route
-          path="/profile"
+          path="/settings"
           element={
             <RoleGuard roles={["citizen"]}>
               <ProfilePage />
             </RoleGuard>
           }
+        />
+        <Route
+          path="/profile"
+          element={<Navigate to="/settings" replace />}
         />
 
         {/* Admin Routes (role: admin) */}
@@ -277,6 +297,22 @@ export default function AppRoutes() {
             </RoleGuard>
           }
         />
+        <Route
+          path="/authority/notifications"
+          element={
+            <RoleGuard roles={["authority"]}>
+              <AuthorityNotifications />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/authority/settings"
+          element={
+            <RoleGuard roles={["authority"]}>
+              <AuthoritySettings />
+            </RoleGuard>
+          }
+        />
 
 {/* Officer Routes (role: officer) */}
         <Route
@@ -312,6 +348,22 @@ export default function AppRoutes() {
           element={
             <RoleGuard roles={["officer"]}>
               <OfficerTaskUpdates />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/officer/notifications"
+          element={
+            <RoleGuard roles={["officer"]}>
+              <OfficerNotifications />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="/officer/settings"
+          element={
+            <RoleGuard roles={["officer"]}>
+              <OfficerSettings />
             </RoleGuard>
           }
         />

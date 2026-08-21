@@ -17,11 +17,15 @@ export function TaskListItem({ task }) {
     <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 sm:p-5 rounded-2xl border border-slate-200/80 bg-white shadow-sm hover:shadow-lifted hover:border-slate-300 transition-all duration-300">
       {/* Thumb */}
       <div className="h-14 w-14 shrink-0 rounded-xl overflow-hidden border border-slate-200">
-        <img
-          src={task.image}
-          alt={task.title}
-          className="h-full w-full object-cover"
-        />
+        {task.image ? (
+          <img
+            src={task.image}
+            alt={task.title}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="h-full w-full bg-slate-100" />
+        )}
       </div>
 
       {/* Main info */}

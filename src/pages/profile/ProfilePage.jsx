@@ -1,10 +1,9 @@
-﻿import React, { useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
+import toast from "react-hot-toast";
 import {
   Pencil,
   Mail,
   Phone,
-  MapPin,
-  Shield,
   Calendar,
   FileText,
   CheckCircle2,
@@ -17,17 +16,17 @@ import {
   FilePlus2,
   UserRound,
   Reply,
-  Sparkles,
   Wrench,
-  Camera,
 } from "lucide-react";
 import { ResponsiveSidebar } from "@/layouts/citizen/ResponsiveSidebar";
 import { HeaderNavbar } from "@/layouts/citizen/HeaderNavbar";
+import { useAuth } from "@/context/AuthContext";
+import { useMyReports } from "@/hooks/useMyReports";
 import {
-  profileData,
-  activitySummary,
-  recentActivities,
-} from "@/data/profileData";
+  notificationsFromReports,
+  unreadNotificationCount,
+} from "@/lib/citizenNotifications";
+import { getErrorMessage } from "@/lib/api";
 
 const activityConfig = {
   submitted: { icon: FilePlus2, cls: "bg-indigo-50 text-indigo-600" },
@@ -35,7 +34,34 @@ const activityConfig = {
   responded: { icon: Reply, cls: "bg-blue-50 text-blue-600" },
   updated: { icon: UserRound, cls: "bg-violet-50 text-violet-600" },
   resolved: { icon: CheckCircle2, cls: "bg-emerald-50 text-emerald-600" },
+  status: { icon: Wrench, cls: "bg-indigo-50 text-indigo-600" },
+  approved: { icon: CheckCircle2, cls: "bg-emerald-50 text-emerald-600" },
+  ai: { icon: FilePlus2, cls: "bg-violet-50 text-violet-600" },
 };
+
+function roleLabel(role) {
+  if (!role) return "Citizen";
+  const value = String(role).toLowerCase();
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function memberSince(iso) {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("en-GB", {
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function initialsFromName(name) {
+  const parts = String(name || "C")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  return (parts.slice(0, 2).map((part) => part[0]).join("") || "C").toUpperCase();
+}
 
 function getPasswordStrength(pw) {
   let score = 0;
@@ -60,71 +86,116 @@ function getPasswordStrength(pw) {
   };
 }
 
+function formFromUser(user) {
+  return {
+    fullName: user?.fullName || "",
+    email: user?.email || "",
+    phone: user?.phone || "",
+    location: user?.location || "",
+    district: user?.district || "",
+  };
+}
+
 export default function ProfilePage() {
+  const { user, updateProfile, changePassword } = useAuth();
+  const { reports } = useMyReports();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({
-    fullName: profileData.fullName,
-    email: profileData.email,
-    phone: profileData.phone,
-    address: profileData.address,
-    city: profileData.city,
-    country: profileData.country,
-  });
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState(() => formFromUser(user));
   const [showPassword, setShowPassword] = useState(false);
   const [passwords, setPasswords] = useState({
     current: "",
     new: "",
     confirm: "",
   });
-  const [passwordMessage, setPasswordMessage] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
+
+  useEffect(() => {
+    setForm(formFromUser(user));
+  }, [user]);
+
+  const displayName = user?.fullName || "Citizen";
+  const recentActivities = useMemo(
+    () => notificationsFromReports(reports).slice(0, 6),
+    [reports],
+  );
 
   const stats = [
     {
       label: "Total Reports",
-      value: activitySummary.totalReports,
+      value: reports.length,
       icon: FileText,
       cls: "bg-indigo-50 text-indigo-600",
     },
     {
       label: "Resolved",
-      value: activitySummary.resolvedReports,
+      value: reports.filter((report) => report.status === "Resolved").length,
       icon: CheckCircle2,
       cls: "bg-emerald-50 text-emerald-600",
     },
     {
       label: "Pending",
-      value: activitySummary.pendingReports,
+      value: reports.filter((report) =>
+        ["Pending", "Assigned"].includes(report.status),
+      ).length,
       icon: Clock,
       cls: "bg-amber-50 text-amber-600",
     },
     {
       label: "Notifications",
-      value: activitySummary.notifications,
+      value: unreadNotificationCount(reports),
       icon: BellRing,
       cls: "bg-violet-50 text-violet-600",
     },
   ];
 
   const strength = getPasswordStrength(passwords.new);
+  const joined = memberSince(user?.createdAt);
 
-  const handleEdit = (e) => {
+  const handleEdit = async (e) => {
     e.preventDefault();
-    setEditing(false);
+    setSaving(true);
+    try {
+      await updateProfile({
+        fullName: form.fullName.trim(),
+        phone: form.phone.trim(),
+        location: form.location.trim(),
+        district: form.district.trim(),
+      });
+      setEditing(false);
+      toast.success("Settings saved successfully");
+    } catch (error) {
+      toast.error(getErrorMessage(error.data, error.message || "Could not save settings"));
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handlePassword = (e) => {
+  const handlePassword = async (e) => {
     e.preventDefault();
     if (passwords.new !== passwords.confirm) {
-      setPasswordMessage("New passwords do not match.");
+      toast.error("New passwords do not match.");
       return;
     }
     if (passwords.new.length < 8) {
-      setPasswordMessage("Password must be at least 8 characters.");
+      toast.error("Password must be at least 8 characters.");
       return;
     }
-    setPasswordMessage("Password updated successfully!");
-    setPasswords({ current: "", new: "", confirm: "" });
+    setSavingPassword(true);
+    try {
+      await changePassword({
+        currentPassword: passwords.current,
+        newPassword: passwords.new,
+        confirmPassword: passwords.confirm,
+      });
+      setPasswords({ current: "", new: "", confirm: "" });
+      toast.success("Password updated successfully");
+    } catch (error) {
+      toast.error(getErrorMessage(error.data, error.message || "Could not update password"));
+    } finally {
+      setSavingPassword(false);
+    }
   };
 
   const inputClass =
@@ -139,65 +210,61 @@ export default function ProfilePage() {
 
       <div className="flex-1 flex flex-col min-w-0">
         <HeaderNavbar
-          title="Profile"
+          title="Settings"
           onMenuToggle={() => setMobileMenuOpen(true)}
         />
 
         <main className="p-4 sm:p-6 lg:p-8 max-w-6xl w-full mx-auto space-y-6">
-          {/* Profile Header */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 animate-fade-in">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
-              {/* Avatar */}
-              <div className="relative">
-                <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center text-2xl font-bold shadow-lg shadow-indigo-600/20">
-                  A
-                </div>
-                <button
-                  title="Change photo"
-                  className="absolute -bottom-1 -right-1 p-1.5 bg-white border border-slate-200 rounded-full text-slate-500 hover:text-indigo-600 hover:border-indigo-300 shadow-sm transition-colors cursor-pointer"
-                >
-                  <Camera className="h-3.5 w-3.5" />
-                </button>
+              <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center text-2xl font-bold shadow-lg shadow-indigo-600/20">
+                {initialsFromName(displayName)}
               </div>
 
-              {/* Info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <h2 className="text-xl font-bold text-slate-900">
-                    {profileData.fullName}
+                    {displayName}
                   </h2>
                   <span className="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 text-[10px] font-bold uppercase tracking-wide ring-1 ring-indigo-100">
-                    {profileData.role}
+                    {roleLabel(user?.role)}
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-slate-500">
-                  <span className="flex items-center gap-1.5">
-                    <Mail className="h-3.5 w-3.5 text-slate-400" />
-                    {profileData.email}
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <Phone className="h-3.5 w-3.5 text-slate-400" />
-                    {profileData.phone}
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                    Member since {profileData.memberSince}
-                  </span>
+                  {user?.email && (
+                    <span className="flex items-center gap-1.5">
+                      <Mail className="h-3.5 w-3.5 text-slate-400" />
+                      {user.email}
+                    </span>
+                  )}
+                  {user?.phone && (
+                    <span className="flex items-center gap-1.5">
+                      <Phone className="h-3.5 w-3.5 text-slate-400" />
+                      {user.phone}
+                    </span>
+                  )}
+                  {joined && (
+                    <span className="flex items-center gap-1.5">
+                      <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                      Member since {joined}
+                    </span>
+                  )}
                 </div>
               </div>
 
-              {/* Edit Button */}
               <button
-                onClick={() => setEditing(!editing)}
+                onClick={() => {
+                  if (editing) setForm(formFromUser(user));
+                  setEditing(!editing);
+                }}
                 className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-sm shadow-indigo-600/20 transition-all hover:shadow-md active:scale-[0.98] cursor-pointer"
               >
                 <Pencil className="h-3.5 w-3.5" />
-                {editing ? "Cancel" : "Edit Profile"}
+                {editing ? "Cancel" : "Edit"}
               </button>
             </div>
           </div>
 
-          {/* Activity Summary */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-slide-up">
             {stats.map((s) => {
               const Icon = s.icon;
@@ -224,13 +291,11 @@ export default function ProfilePage() {
             })}
           </div>
 
-          {/* Personal Info + Security */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-            {/* Personal Information */}
             <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 animate-slide-up">
               <div className="flex items-center justify-between mb-5">
                 <h3 className="text-base font-bold text-slate-900">
-                  Personal Information
+                  Account
                 </h3>
                 <Pencil className="h-4 w-4 text-slate-400" />
               </div>
@@ -258,10 +323,7 @@ export default function ProfilePage() {
                     <input
                       type="email"
                       value={form.email}
-                      disabled={!editing}
-                      onChange={(e) =>
-                        setForm({ ...form, email: e.target.value })
-                      }
+                      disabled
                       className={inputClass}
                     />
                   </div>
@@ -281,42 +343,28 @@ export default function ProfilePage() {
                   </div>
                   <div>
                     <label className="text-xs font-bold text-slate-700 block mb-1.5">
-                      Address
+                      Location
                     </label>
                     <input
                       type="text"
-                      value={form.address}
+                      value={form.location}
                       disabled={!editing}
                       onChange={(e) =>
-                        setForm({ ...form, address: e.target.value })
+                        setForm({ ...form, location: e.target.value })
                       }
                       className={inputClass}
                     />
                   </div>
-                  <div>
+                  <div className="sm:col-span-2">
                     <label className="text-xs font-bold text-slate-700 block mb-1.5">
-                      City
+                      District
                     </label>
                     <input
                       type="text"
-                      value={form.city}
+                      value={form.district}
                       disabled={!editing}
                       onChange={(e) =>
-                        setForm({ ...form, city: e.target.value })
-                      }
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1.5">
-                      Country
-                    </label>
-                    <input
-                      type="text"
-                      value={form.country}
-                      disabled={!editing}
-                      onChange={(e) =>
-                        setForm({ ...form, country: e.target.value })
+                        setForm({ ...form, district: e.target.value })
                       }
                       className={inputClass}
                     />
@@ -326,16 +374,16 @@ export default function ProfilePage() {
                 {editing && (
                   <button
                     type="submit"
-                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-sm shadow-indigo-600/20 transition-all hover:shadow-md active:scale-[0.98] cursor-pointer"
+                    disabled={saving}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-sm shadow-indigo-600/20 transition-all hover:shadow-md active:scale-[0.98] cursor-pointer disabled:opacity-60"
                   >
                     <Save className="h-3.5 w-3.5" />
-                    Save Changes
+                    {saving ? "Saving..." : "Save Changes"}
                   </button>
                 )}
               </form>
             </div>
 
-            {/* Security */}
             <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 animate-slide-up">
               <div className="flex items-center gap-2 mb-5">
                 <Key className="h-4 w-4 text-indigo-600" />
@@ -384,7 +432,6 @@ export default function ProfilePage() {
                     placeholder="Enter new password"
                     className={inputClass}
                   />
-                  {/* Strength indicator */}
                   {passwords.new && (
                     <div className="mt-2">
                       <div className="flex gap-1.5">
@@ -401,12 +448,7 @@ export default function ProfilePage() {
                       </div>
                       <p className="text-[11px] font-medium text-slate-500 mt-1.5">
                         Password strength:{" "}
-                        <span
-                          className="font-bold"
-                          style={{ color: strength.color }}
-                        >
-                          {strength.label}
-                        </span>
+                        <span className="font-bold">{strength.label}</span>
                       </p>
                     </div>
                   )}
@@ -427,62 +469,55 @@ export default function ProfilePage() {
                   />
                 </div>
 
-                {passwordMessage && (
-                  <p
-                    className={`text-xs font-semibold ${
-                      passwordMessage.includes("success")
-                        ? "text-emerald-600"
-                        : "text-rose-600"
-                    }`}
-                  >
-                    {passwordMessage}
-                  </p>
-                )}
-
                 <button
                   type="submit"
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl shadow-sm transition-all active:scale-[0.98] cursor-pointer"
+                  disabled={savingPassword}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl shadow-sm transition-all active:scale-[0.98] cursor-pointer disabled:opacity-60"
                 >
                   <Key className="h-3.5 w-3.5" />
-                  Update Password
+                  {savingPassword ? "Saving..." : "Update Password"}
                 </button>
               </form>
             </div>
           </div>
 
-          {/* Recent Activity */}
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 animate-slide-up">
             <h3 className="text-base font-bold text-slate-900 mb-5">
               Recent Activity
             </h3>
-            <div className="relative space-y-6">
-              {/* Timeline line */}
-              <div className="absolute left-[19px] top-2 bottom-2 w-px bg-slate-100" />
-              {recentActivities.map((a) => {
-                const cfg = activityConfig[a.action];
-                const Icon = cfg.icon;
-                return (
-                  <div key={a.id} className="relative flex items-start gap-4">
-                    <div
-                      className={`relative z-10 p-2.5 rounded-xl shrink-0 ${cfg.cls}`}
-                    >
-                      <Icon className="h-4 w-4" />
+            {recentActivities.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                No activity yet. Submit a report to see updates here.
+              </p>
+            ) : (
+              <div className="relative space-y-6">
+                <div className="absolute left-[19px] top-2 bottom-2 w-px bg-slate-100" />
+                {recentActivities.map((a) => {
+                  const cfg = activityConfig[a.type] || activityConfig.status;
+                  const Icon = cfg.icon;
+                  return (
+                    <div key={a.id} className="relative flex items-start gap-4">
+                      <div
+                        className={`relative z-10 p-2.5 rounded-xl shrink-0 ${cfg.cls}`}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <div className="pt-1">
+                        <p className="text-sm font-bold text-slate-900">
+                          {a.title}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          {a.description}
+                        </p>
+                        <p className="text-[10px] text-slate-400 mt-1">
+                          {[a.date, a.time].filter(Boolean).join(" · ")}
+                        </p>
+                      </div>
                     </div>
-                    <div className="pt-1">
-                      <p className="text-sm font-bold text-slate-900">
-                        {a.title}
-                      </p>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        {a.description}
-                      </p>
-                      <p className="text-[10px] text-slate-400 mt-1">
-                        {a.time}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </main>
       </div>

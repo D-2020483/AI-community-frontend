@@ -10,6 +10,159 @@ export function invalidateMyReportsCache() {
   myReportsCache = { at: 0, data: null };
 }
 
+function parseConfidenceNumber(value) {
+  if (value === null || value === undefined || value === "") return 0;
+  const numeric = Number.parseFloat(String(value).replace("%", ""));
+  if (Number.isNaN(numeric)) return 0;
+  return numeric <= 1 ? Math.round(numeric * 100) : Math.round(numeric);
+}
+
+function buildAuthorityTimeline(report) {
+  const created = report.date || "";
+  const items = [
+    {
+      label: "Reported",
+      text: `Report submitted by ${report.citizen || "citizen"}`,
+      time: created,
+    },
+    {
+      label: "Assigned",
+      text: `Assigned to ${report.authority || "the relevant authority"}`,
+      time: created,
+    },
+  ];
+  if (report.status === "In Progress" || report.status === "Resolved") {
+    items.push({
+      label: "In Progress",
+      text: "Authority is working on this issue",
+      time: created,
+    });
+  }
+  if (report.status === "Resolved") {
+    items.push({
+      label: "Resolved",
+      text: "Issue marked as resolved",
+      time: created,
+    });
+  }
+  return items;
+}
+
+export function mapComplaintToAuthorityView(report) {
+  const list = mapComplaintToListView(report);
+  if (!list) return null;
+
+  const confidence = parseConfidenceNumber(
+    report.confidence ?? list.confidence,
+  );
+
+  const mapped = {
+    ...list,
+    image: report.image || list.imageUrl || "",
+    citizen: report.citizen || "Citizen",
+    citizenEmail: report.citizenEmail || "",
+    assignedOfficer: report.assignedOfficer || "",
+    reason: report.reason || "",
+    lat: report.lat ?? null,
+    lng: report.lng ?? null,
+    ai: {
+      detectedIssue:
+        report.detectedIssue || list.title || "Civic issue reported",
+      category: list.category,
+      priority: list.priority,
+      confidence,
+    },
+  };
+
+  return {
+    ...mapped,
+    assignedOfficer: report.assignedOfficer || "",
+    timeline:
+      Array.isArray(report.timeline) && report.timeline.length
+        ? report.timeline
+        : buildAuthorityTimeline(mapped),
+  };
+}
+
+export async function getAssignedReports() {
+  const data = await apiRequest("/complaints/assigned");
+  return (data.data || []).map(mapComplaintToAuthorityView).filter(Boolean);
+}
+
+export async function updateAssignedReport(reportId, { status, assignedOfficer } = {}) {
+  const data = await apiRequest(
+    `/complaints/${encodeURIComponent(reportId)}/status`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ status, assignedOfficer }),
+    },
+  );
+  return mapComplaintToAuthorityView(data.data);
+}
+
+export async function getAuthorityOfficers() {
+  const data = await apiRequest("/complaints/officers");
+  return data.data || [];
+}
+
+export async function getWorkspaceNotifications() {
+  const data = await apiRequest("/complaints/notifications");
+  return data.data?.notifications || [];
+}
+
+export function mapComplaintToOfficerTask(report) {
+  const mapped = mapComplaintToAuthorityView(report);
+  if (!mapped) return null;
+
+  const statusValue = report.officerStatus || mapped.status;
+  const officerStatus =
+    statusValue === "Resolved"
+      ? "Completed"
+      : statusValue === "Pending"
+        ? "Assigned"
+        : statusValue;
+
+  return {
+    ...mapped,
+    type: mapped.category,
+    image: mapped.image || mapped.imageUrl || "",
+    status: officerStatus,
+    updates: Array.isArray(report.updates) ? report.updates : [],
+  };
+}
+
+export async function getOfficerTasks() {
+  const data = await apiRequest("/officer/tasks");
+  return (data.data || []).map(mapComplaintToOfficerTask).filter(Boolean);
+}
+
+export async function getOfficerTask(reportId) {
+  const data = await apiRequest(`/officer/tasks/${encodeURIComponent(reportId)}`);
+  return mapComplaintToOfficerTask(data.data);
+}
+
+export async function updateOfficerTask(reportId, { status, note } = {}) {
+  const data = await apiRequest(
+    `/officer/tasks/${encodeURIComponent(reportId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ status, note }),
+    },
+  );
+  invalidateMyReportsCache();
+  return mapComplaintToOfficerTask(data.data);
+}
+
+export async function getOfficerUpdates() {
+  const data = await apiRequest("/officer/updates");
+  return data.data || [];
+}
+
+export async function getOfficerNotifications() {
+  const data = await apiRequest("/officer/notifications");
+  return data.data?.notifications || [];
+}
+
 export async function saveTrackedReport(payload) {
   const result = await apiRequest("/complaints/track", {
     method: "POST",
@@ -31,8 +184,10 @@ export function formatListStatus(status) {
     SUBMITTED: "Pending",
     PENDING: "Pending",
     ASSIGNED: "Assigned",
+    ACCEPTED: "Accepted",
     IN_PROGRESS: "In Progress",
     RESOLVED: "Resolved",
+    COMPLETED: "Resolved",
     REJECTED: "Rejected",
   };
   return map[value] || "Assigned";
@@ -111,8 +266,10 @@ export function formatStatus(status) {
     SUBMITTED: "Submitted",
     PENDING: "Submitted",
     ASSIGNED: "Assigned",
+    ACCEPTED: "Assigned",
     IN_PROGRESS: "In Progress",
     RESOLVED: "Resolved",
+    COMPLETED: "Resolved",
     REJECTED: "Rejected",
   };
   return map[value] || "Assigned";
@@ -147,5 +304,11 @@ export function mapComplaintToTrackView(complaint, extras = {}) {
     imageUrl: complaint.imageUrl || extras.imageUrl,
     reason: complaint.reason || extras.reason,
     createdAt: complaint.createdAt,
+    updatedAt: complaint.updatedAt || extras.updatedAt,
+    assignedOfficer:
+      complaint.assignedOfficer || extras.assignedOfficer || "",
+    timeline: Array.isArray(complaint.timeline)
+      ? complaint.timeline
+      : extras.timeline || [],
   };
 }

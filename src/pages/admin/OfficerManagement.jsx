@@ -23,10 +23,10 @@ import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StatusBadge } from "@/components/ui/Badge";
 import { officersData, authoritiesData } from "@/data/adminData";
-import { buildOfficerEmail } from "@/lib/emailTemplate";
 import { apiRequest, getErrorMessage } from "@/lib/api";
 import { mapAuthorityOption, mapOfficerFromApi } from "@/lib/adminMappers";
 import { toast } from "react-hot-toast";
+import { CreatedCredentialsModal } from "@/components/admin/CreatedCredentialsModal";
 
 const PAGE_SIZE = 6;
 
@@ -84,6 +84,7 @@ export default function OfficerManagement() {
   const [deleteOfficer, setDeleteOfficer] = useState(null);
   const [resetOfficer, setResetOfficer] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [createdCredentials, setCreatedCredentials] = useState(null);
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -181,17 +182,17 @@ export default function OfficerManagement() {
       return;
     }
 
-    const fullName = `${form.firstName} ${form.lastName}`;
-    const createdEmail = form.email;
-    const createdAuthority = form.authority;
+    const createdEmail = form.email.trim();
+    const createdName = `${form.firstName} ${form.lastName}`.trim();
 
+    setBusy(true);
     try {
       const data = await apiRequest("/admin/officers", {
         method: "POST",
         body: JSON.stringify({
           firstName: form.firstName,
           lastName: form.lastName,
-          email: form.email,
+          email: createdEmail,
           phone: form.phone,
           position: form.position,
           department: form.department,
@@ -199,7 +200,8 @@ export default function OfficerManagement() {
         }),
       });
 
-      const { officer, tempPassword, inviteUrl, emailStatus } = data.data;
+      const { officer, tempPassword, loginUrl, inviteUrl, emailStatus } =
+        data.data;
       setOfficers((prev) => [mapOfficerFromApi(officer), ...prev]);
       setCreateOpen(false);
       setForm({
@@ -214,19 +216,31 @@ export default function OfficerManagement() {
         photo: null,
       });
 
+      setCreatedCredentials({
+        name: createdName,
+        email: createdEmail,
+        password: tempPassword,
+        loginUrl: loginUrl || inviteUrl,
+        emailSent: Boolean(emailStatus?.sent),
+        emailMessage: emailStatus?.message,
+      });
+
       if (emailStatus?.sent) {
         toast.success(
-          `Officer created. A login link and temporary password were sent to ${createdEmail}`,
+          `Officer created. Login details were emailed to ${createdEmail}`,
           { duration: 6000 },
         );
       } else {
-        toast.warning(
-          `Officer created successfully, but email delivery is not configured. Use the backend response credentials for ${createdEmail}`,
+        toast.error(
+          emailStatus?.message ||
+            `Officer created, but the email was not sent. Copy the login details for ${createdEmail}`,
           { duration: 8000 },
         );
       }
     } catch (error) {
       toast.error(getErrorMessage(error.data, error.message));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -316,16 +330,18 @@ export default function OfficerManagement() {
         `/admin/officers/${resetOfficer.id}/reset-password`,
         { method: "POST" },
       );
-      const { tempPassword, email } = data.data;
-      const emailHtml = buildOfficerEmail({
-        name: `${resetOfficer.firstName} ${resetOfficer.lastName}`,
-        email,
-        tempPassword,
-        authority: resetOfficer.authority,
-      });
-      window.open("", "_blank").document.write(emailHtml);
-      toast.success(`Password reset. New credentials prepared for ${email}`);
+      const { tempPassword, email, loginUrl, inviteUrl, emailStatus } =
+        data.data;
       setResetOfficer(null);
+      setCreatedCredentials({
+        name: `${resetOfficer.firstName} ${resetOfficer.lastName}`.trim(),
+        email: email || resetOfficer.email,
+        password: tempPassword,
+        loginUrl: loginUrl || inviteUrl,
+        emailSent: Boolean(emailStatus?.sent),
+        emailMessage: emailStatus?.message,
+      });
+      toast.success(`Password reset. New credentials prepared for ${email}`);
     } catch (error) {
       toast.error(getErrorMessage(error.data, error.message));
     }
@@ -580,9 +596,11 @@ export default function OfficerManagement() {
             </button>
             <button
               onClick={handleCreate}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition-all active:scale-[0.98] cursor-pointer"
+              disabled={busy}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
             >
-              <ShieldCheck className="h-3.5 w-3.5" /> Create & Send Credentials
+              <ShieldCheck className="h-3.5 w-3.5" />{" "}
+              {busy ? "Creating..." : "Create & Send Credentials"}
             </button>
           </>
         }
@@ -871,6 +889,12 @@ export default function OfficerManagement() {
         tone="primary"
         onConfirm={handleReset}
         onCancel={() => setResetOfficer(null)}
+      />
+
+      <CreatedCredentialsModal
+        credentials={createdCredentials}
+        onClose={() => setCreatedCredentials(null)}
+        roleLabel="officer"
       />
     </AdminLayout>
   );

@@ -1,3 +1,5 @@
+import { emitInboxChanged } from "@/lib/inboxEvents";
+
 const READ_KEY = "civiclink_notification_read";
 const DELETED_KEY = "civiclink_notification_deleted";
 
@@ -16,6 +18,7 @@ function writeIdSet(key, ids) {
   } catch {
     /* ignore storage errors */
   }
+  emitInboxChanged();
 }
 
 function relativeParts(iso) {
@@ -72,6 +75,32 @@ export function notificationsFromReports(reports = []) {
   reports.forEach((report) => {
     const title = report.title || report.category || "civic issue";
     const authority = report.authority || "the assigned authority";
+    const timeline = Array.isArray(report.timeline) ? report.timeline : [];
+
+    if (timeline.length) {
+      timeline.forEach((event, index) => {
+        const stamp = relativeParts(event.at || report.updatedAt || report.createdAt);
+        const label = String(event.label || "").toLowerCase();
+        let type = "status";
+        if (index === 0 || label.includes("reported")) type = "ai";
+        else if (label.includes("officer")) type = "responded";
+        else if (label.includes("assigned")) type = "approved";
+        else if (label.includes("resolved")) type = "resolved";
+        items.push({
+          id: `${report.id}-event-${index}`,
+          reportId: report.id,
+          type,
+          title: event.label || "Report update",
+          description: event.text || `${report.id} (${title}) was updated by ${authority}.`,
+          date: stamp.date,
+          time: stamp.time,
+          createdAt: stamp.createdAt,
+          diffDays: stamp.diffDays,
+          read: stamp.diffDays > 1,
+        });
+      });
+      return;
+    }
 
     pushNotification(
       items,
@@ -94,25 +123,35 @@ export function notificationsFromReports(reports = []) {
     }
 
     if (report.status === "In Progress" || report.status === "Resolved") {
-      pushNotification(
-        items,
-        report,
-        "progress",
-        "status",
-        "Status updated",
-        `${report.id} is now ${report.status}. ${authority} is working on it.`,
-      );
+      const when = relativeParts(report.updatedAt || report.createdAt);
+      items.push({
+        id: `${report.id}-progress`,
+        reportId: report.id,
+        type: "status",
+        title: "Status updated",
+        description: `${report.id} is now ${report.status}. ${authority} is working on it.`,
+        date: when.date,
+        time: when.time,
+        createdAt: when.createdAt,
+        diffDays: when.diffDays,
+        read: when.diffDays > 1,
+      });
     }
 
     if (report.status === "Resolved") {
-      pushNotification(
-        items,
-        report,
-        "resolved",
-        "resolved",
-        "Report resolved",
-        `Great news! Your report ${report.id} has been marked as resolved.`,
-      );
+      const when = relativeParts(report.updatedAt || report.createdAt);
+      items.push({
+        id: `${report.id}-resolved`,
+        reportId: report.id,
+        type: "resolved",
+        title: "Report resolved",
+        description: `Great news! Your report ${report.id} has been marked as resolved.`,
+        date: when.date,
+        time: when.time,
+        createdAt: when.createdAt,
+        diffDays: when.diffDays,
+        read: when.diffDays > 1,
+      });
     }
 
     if (report.status === "Rejected") {

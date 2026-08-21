@@ -8,6 +8,8 @@ import {
   X,
   ChevronRight,
   Building2,
+  Bell,
+  Settings,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -21,7 +23,7 @@ const navSections = [
         name: "Reports",
         icon: FileText,
         path: "/authority/reports",
-        badge: true,
+        badgeKey: "reports",
       },
       {
         name: "Officers",
@@ -35,9 +37,26 @@ const navSections = [
       },
     ],
   },
+  {
+    label: "System",
+    items: [
+      {
+        name: "Notifications",
+        icon: Bell,
+        path: "/authority/notifications",
+        badgeKey: "notifications",
+      },
+      { name: "Settings", icon: Settings, path: "/authority/settings" },
+    ],
+  },
 ];
 
-export function AuthoritySidebar({ isOpen, onClose }) {
+export function AuthoritySidebar({
+  isOpen,
+  onClose,
+  notificationBadge = 0,
+  unseenReports = 0,
+}) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
@@ -100,6 +119,12 @@ export function AuthoritySidebar({ isOpen, onClose }) {
                 {section.items.map((item) => {
                   const Icon = item.icon;
                   const active = isActive(item.path);
+                  const badge =
+                    item.badgeKey === "notifications"
+                      ? notificationBadge
+                      : item.badgeKey === "reports"
+                        ? unseenReports
+                        : 0;
                   return (
                     <button
                       key={item.name}
@@ -114,18 +139,20 @@ export function AuthoritySidebar({ isOpen, onClose }) {
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <Icon
-                          className={`h-4 w-4 shrink-0 transition-colors ${
-                            active
-                              ? "text-indigo-600"
-                              : "text-slate-400 group-hover:text-slate-600"
-                          }`}
-                        />
+                        <span className="relative shrink-0">
+                          <Icon
+                            className={`h-4 w-4 transition-colors ${
+                              active
+                                ? "text-indigo-600"
+                                : "text-slate-400 group-hover:text-slate-600"
+                            }`}
+                          />
+                          {badge > 0 && (
+                            <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-blue-500 ring-2 ring-white" />
+                          )}
+                        </span>
                         <span className="truncate">{item.name}</span>
                       </div>
-                      {item.badge && (
-                        <span className="h-2 w-2 rounded-full bg-indigo-600 shrink-0" />
-                      )}
                     </button>
                   );
                 })}
@@ -150,7 +177,10 @@ export function AuthoritySidebar({ isOpen, onClose }) {
               </span>
             </div>
           </div>
-          <button className="text-slate-400 hover:text-slate-600 hover:bg-slate-50 p-1.5 rounded-lg transition-colors cursor-pointer">
+          <button
+            onClick={() => navigate("/authority/settings")}
+            className="text-slate-400 hover:text-slate-600 hover:bg-slate-50 p-1.5 rounded-lg transition-colors cursor-pointer"
+          >
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>

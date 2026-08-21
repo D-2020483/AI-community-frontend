@@ -8,6 +8,8 @@ import {
   ChevronRight,
   ShieldCheck,
   UserRound,
+  Bell,
+  Settings,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -16,12 +18,12 @@ const navSections = [
   {
     label: "Officer Workspace",
     items: [
-{ name: "Dashboard", icon: LayoutGrid, path: "/officer/overview" },
+      { name: "Dashboard", icon: LayoutGrid, path: "/officer/overview" },
       {
         name: "Assigned tasks",
         icon: ClipboardList,
         path: "/officer/tasks",
-        badge: true,
+        badgeKey: "tasks",
       },
       {
         name: "Task updates",
@@ -30,9 +32,26 @@ const navSections = [
       },
     ],
   },
+  {
+    label: "System",
+    items: [
+      {
+        name: "Notifications",
+        icon: Bell,
+        path: "/officer/notifications",
+        badgeKey: "notifications",
+      },
+      { name: "Settings", icon: Settings, path: "/officer/settings" },
+    ],
+  },
 ];
 
-export function OfficerSidebar({ isOpen, onClose }) {
+export function OfficerSidebar({
+  isOpen,
+  onClose,
+  notificationBadge = 0,
+  unseenTasks = 0,
+}) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
@@ -102,6 +121,12 @@ export function OfficerSidebar({ isOpen, onClose }) {
                 {section.items.map((item) => {
                   const Icon = item.icon;
                   const active = isActive(item.path);
+                  const badge =
+                    item.badgeKey === "notifications"
+                      ? notificationBadge
+                      : item.badgeKey === "tasks"
+                        ? unseenTasks
+                        : 0;
                   return (
                     <button
                       key={item.name}
@@ -116,18 +141,20 @@ export function OfficerSidebar({ isOpen, onClose }) {
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <Icon
-                          className={`h-4 w-4 shrink-0 transition-colors ${
-                            active
-                              ? "text-indigo-600"
-                              : "text-slate-400 group-hover:text-slate-600"
-                          }`}
-                        />
+                        <span className="relative shrink-0">
+                          <Icon
+                            className={`h-4 w-4 transition-colors ${
+                              active
+                                ? "text-indigo-600"
+                                : "text-slate-400 group-hover:text-slate-600"
+                            }`}
+                          />
+                          {badge > 0 && (
+                            <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-blue-500 ring-2 ring-white" />
+                          )}
+                        </span>
                         <span className="truncate">{item.name}</span>
                       </div>
-                      {item.badge && (
-                        <span className="h-2 w-2 rounded-full bg-indigo-600 shrink-0" />
-                      )}
                     </button>
                   );
                 })}
@@ -153,7 +180,10 @@ export function OfficerSidebar({ isOpen, onClose }) {
               </span>
             </div>
           </div>
-          <button className="text-slate-400 hover:text-slate-600 hover:bg-slate-50 p-1.5 rounded-lg transition-colors cursor-pointer">
+          <button
+            onClick={() => navigate("/officer/settings")}
+            className="text-slate-400 hover:text-slate-600 hover:bg-slate-50 p-1.5 rounded-lg transition-colors cursor-pointer"
+          >
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>

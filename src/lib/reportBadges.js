@@ -1,3 +1,5 @@
+import { emitInboxChanged } from "@/lib/inboxEvents";
+
 function readIdSet(key) {
   try {
     const raw = localStorage.getItem(key);
@@ -17,6 +19,8 @@ function writeIdSet(key, ids) {
 
 const ADMIN_SEEN_REPORTS = "civiclink_admin_seen_reports";
 const CITIZEN_SEEN_REPORTS = "civiclink_citizen_seen_reports";
+const AUTHORITY_SEEN_REPORTS = "civiclink_authority_seen_reports";
+const OFFICER_SEEN_REPORTS = "civiclink_officer_seen_reports";
 
 export function unseenReportCount(reports = [], key = ADMIN_SEEN_REPORTS) {
   const seen = readIdSet(key);
@@ -27,9 +31,12 @@ export function markReportsSeen(ids = [], key = ADMIN_SEEN_REPORTS) {
   const stored = readIdSet(key);
   ids.filter(Boolean).forEach((id) => stored.add(id));
   writeIdSet(key, stored);
+  emitInboxChanged();
 }
 
 export const REPORT_SEEN_KEYS = {
   admin: ADMIN_SEEN_REPORTS,
   citizen: CITIZEN_SEEN_REPORTS,
+  authority: AUTHORITY_SEEN_REPORTS,
+  officer: OFFICER_SEEN_REPORTS,
 };

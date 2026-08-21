@@ -502,7 +502,7 @@ export default function UserManagement() {
                     <td className="px-5 py-3.5">
                       <div className="flex items-center justify-end gap-1">
                         <button
-                          title="View Profile"
+                          title="View user"
                           onClick={() => openViewUser(u)}
                           className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
                         >
@@ -619,7 +619,7 @@ export default function UserManagement() {
       <Modal
         open={!!viewUser}
         onClose={() => setViewUser(null)}
-        title="User Profile"
+        title="User details"
         subtitle={viewUser?.email || ""}
         size="lg"
         footer={

@@ -1,8 +1,17 @@
-import React, { createContext, useContext, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { useAuth } from "@/context/AuthContext";
 import {
-  officerTasks,
-  mockOfficerCredential,
-} from "@/data/officer/mockOfficerTasks";
+  getOfficerTasks,
+  mapComplaintToOfficerTask,
+  updateOfficerTask,
+} from "@/lib/reportService";
 
 const STORAGE_KEY = "civiclink_officer";
 
@@ -11,81 +20,126 @@ const OfficerContext = createContext({
   loginOfficer: () => {},
   logoutOfficer: () => {},
   tasks: [],
-  acceptTask: () => {},
-  updateTaskStatus: () => {},
-  addTaskUpdate: () => {},
+  tasksLoading: false,
+  tasksError: null,
+  refreshTasks: async () => {},
+  acceptTask: async () => {},
+  updateTaskStatus: async () => {},
+  addTaskUpdate: async () => {},
 });
 
+function sessionFromUser(user) {
+  return {
+    name: user?.fullName || "Field Officer",
+    email: user?.email || "",
+    role: "officer",
+    department:
+      user?.officer?.department ||
+      user?.officer?.authority?.name ||
+      user?.officer?.position ||
+      "",
+    position: user?.officer?.position || "Field Officer",
+    authorityName: user?.officer?.authority?.name || "",
+  };
+}
+
 export function OfficerProvider({ children }) {
-  // Initialize officer from localStorage (simulated session).
-  const [officer, setOfficer] = useState(() => {
+  const { user, role, isAuthenticated, logout } = useAuth();
+  const [tasks, setTasks] = useState([]);
+  const [tasksLoading, setTasksLoading] = useState(false);
+  const [tasksError, setTasksError] = useState(null);
+
+  const officer = useMemo(() => {
+    if (!isAuthenticated || role !== "officer" || !user) return null;
+    const session = sessionFromUser(user);
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      return stored ? JSON.parse(stored) : null;
-    } catch (_) {
-      return null;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+    } catch {
+      /* ignore storage errors */
     }
+    return session;
+  }, [isAuthenticated, role, user]);
+
+  const loadTasks = useCallback(async () => {
+    if (!officer) {
+      setTasks([]);
+      setTasksError(null);
+      setTasksLoading(false);
+      return;
+    }
+
+    setTasksLoading(true);
+    setTasksError(null);
+
+    try {
+      const assigned = await getOfficerTasks();
+      setTasks(assigned);
+    } catch (error) {
+      setTasks([]);
+      setTasksError(
+        error?.message || "Could not load tasks assigned to this officer.",
+      );
+    } finally {
+      setTasksLoading(false);
+    }
+  }, [officer]);
+
+  useEffect(() => {
+    loadTasks();
+  }, [loadTasks]);
+
+  const loginOfficer = () => ({
+    success: false,
+    message: "Use the main login page to sign in as an officer.",
   });
 
-  const [tasks, setTasks] = useState(officerTasks);
-
-  const loginOfficer = (email, password) => {
-    if (
-      email.trim().toLowerCase() !== mockOfficerCredential.email ||
-      password !== mockOfficerCredential.password
-    ) {
-      return { success: false, message: "Invalid email or password." };
+  const logoutOfficer = async () => {
+    setTasks([]);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      /* ignore storage errors */
     }
-    const session = {
-      name: mockOfficerCredential.name,
-      email: mockOfficerCredential.email,
-      role: mockOfficerCredential.role,
-      department: mockOfficerCredential.department,
-    };
-    setOfficer(session);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-    return { success: true, officer: session };
+    await logout();
   };
 
-  const logoutOfficer = () => {
-    setOfficer(null);
-    localStorage.removeItem(STORAGE_KEY);
+  const persistTask = async (taskId, payload) => {
+    try {
+      const updated = await updateOfficerTask(taskId, payload);
+      setTasks((prev) => {
+        const exists = prev.some((task) => task.id === taskId || task.reportId === taskId);
+        if (!exists) return prev;
+        return prev.map((task) =>
+          task.id === taskId || task.reportId === taskId
+            ? mapComplaintToOfficerTask({ ...task, ...updated })
+            : task,
+        );
+      });
+      return updated;
+    } catch (error) {
+      await loadTasks();
+      throw error;
+    }
   };
 
-  // Accept a task (marks status as "Accepted").
-  const acceptTask = (taskId) => {
+  const acceptTask = async (taskId) => {
     setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, status: "Accepted" } : t)),
-    );
-  };
-
-  // Update a task's status directly.
-  const updateTaskStatus = (taskId, status) => {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, status } : t)),
-    );
-  };
-
-  // Append a resolution update to a task.
-  const addTaskUpdate = (taskId, update) => {
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId
-          ? {
-              ...t,
-              updates: [
-                ...(t.updates || []),
-                {
-                  id: `upd-${Date.now()}`,
-                  author: officer?.name || "Field Officer",
-                  text: update,
-                  time: new Date().toLocaleString(),
-                },
-              ],
-            }
-          : t,
+      prev.map((task) =>
+        task.id === taskId ? { ...task, status: "Accepted" } : task,
       ),
     );
+    return persistTask(taskId, { status: "Accepted" });
+  };
+
+  const updateTaskStatus = async (taskId, status) => {
+    setTasks((prev) =>
+      prev.map((task) => (task.id === taskId ? { ...task, status } : task)),
+    );
+    return persistTask(taskId, { status });
+  };
+
+  const addTaskUpdate = async (taskId, update) => {
+    return persistTask(taskId, { note: update });
   };
 
   const value = {
@@ -93,6 +147,9 @@ export function OfficerProvider({ children }) {
     loginOfficer,
     logoutOfficer,
     tasks,
+    tasksLoading,
+    tasksError,
+    refreshTasks: loadTasks,
     acceptTask,
     updateTaskStatus,
     addTaskUpdate,

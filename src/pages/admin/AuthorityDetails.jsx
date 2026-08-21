@@ -33,13 +33,10 @@ import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { authoritiesData, officersData } from "@/data/adminData";
-import {
-  buildOfficerEmail,
-  generateTemporaryPassword,
-} from "@/lib/emailTemplate";
 import { toast } from "react-hot-toast";
 import { apiRequest, getErrorMessage } from "@/lib/api";
 import { mapAuthorityFromApi, mapOfficerFromApi } from "@/lib/adminMappers";
+import { CreatedCredentialsModal } from "@/components/admin/CreatedCredentialsModal";
 
 const districtCenters = [
   { name: "North District", lat: 4.8156, lng: 7.0498, population: 182000 },
@@ -75,6 +72,8 @@ export default function AuthorityDetails() {
   const [deactivateOfficer, setDeactivateOfficer] = useState(null);
   const [deleteOfficer, setDeleteOfficer] = useState(null);
   const [resetOfficer, setResetOfficer] = useState(null);
+  const [createdCredentials, setCreatedCredentials] = useState(null);
+  const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -116,53 +115,67 @@ export default function AuthorityDetails() {
     .map((d) => d.trim())
     .filter(Boolean);
 
-  const handleAddOfficer = (e) => {
+  const handleAddOfficer = async (e) => {
     e.preventDefault();
     if (!form.firstName || !form.lastName || !form.email) {
       toast.error("First name, last name, and email are required");
       return;
     }
-    const tempPassword = generateTemporaryPassword();
-    const fullName = `${form.firstName} ${form.lastName}`;
-    const newOfficer = {
-      id: `off-${Date.now()}`,
-      firstName: form.firstName,
-      lastName: form.lastName,
-      email: form.email,
-      phone: form.phone || "—",
-      position: form.position || "Officer",
-      department: form.department || "Field Operations",
-      authority: authority.name,
-      authorityId: authority.id,
-      activeReports: 0,
-      completedReports: 0,
-      availability: "Available",
-      avatar: form.photo,
-      status: "Active",
-    };
-    setOfficers((prev) => [...prev, newOfficer]);
-    setAuthority((prev) => ({ ...prev, officers: prev.officers + 1 }));
-    setAddOfficerOpen(false);
-    setForm({
-      firstName: "",
-      lastName: "",
-      email: "",
-      phone: "",
-      position: "",
-      department: "",
-      photo: null,
-    });
-
-    const emailHtml = buildOfficerEmail({
-      name: fullName,
-      email: form.email,
-      tempPassword,
-      authority: authority.name,
-    });
-    window.open("", "_blank").document.write(emailHtml);
-    toast.success(`Officer created. Credentials sent to ${form.email}`, {
-      duration: 5000,
-    });
+    const createdEmail = form.email.trim();
+    const createdName = `${form.firstName} ${form.lastName}`.trim();
+    setBusy(true);
+    try {
+      const data = await apiRequest("/admin/officers", {
+        method: "POST",
+        body: JSON.stringify({
+          firstName: form.firstName,
+          lastName: form.lastName,
+          email: createdEmail,
+          phone: form.phone,
+          position: form.position,
+          department: form.department,
+          authorityId: authority.id,
+        }),
+      });
+      const { officer, tempPassword, loginUrl, inviteUrl, emailStatus } =
+        data.data;
+      setOfficers((prev) => [mapOfficerFromApi(officer), ...prev]);
+      setAuthority((prev) => ({ ...prev, officers: prev.officers + 1 }));
+      setAddOfficerOpen(false);
+      setForm({
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        position: "",
+        department: "",
+        photo: null,
+      });
+      setCreatedCredentials({
+        name: createdName,
+        email: createdEmail,
+        password: tempPassword,
+        loginUrl: loginUrl || inviteUrl,
+        emailSent: Boolean(emailStatus?.sent),
+        emailMessage: emailStatus?.message,
+      });
+      if (emailStatus?.sent) {
+        toast.success(
+          `Officer created. Login details were emailed to ${createdEmail}`,
+          { duration: 6000 },
+        );
+      } else {
+        toast.error(
+          emailStatus?.message ||
+            `Officer created, but the email was not sent. Copy the login details for ${createdEmail}`,
+          { duration: 8000 },
+        );
+      }
+    } catch (error) {
+      toast.error(getErrorMessage(error.data, error.message));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handlePhotoUpload = (e) => {
@@ -228,20 +241,28 @@ export default function AuthorityDetails() {
     }
   };
 
-  const handleResetPassword = () => {
+  const handleResetPassword = async () => {
     if (!resetOfficer) return;
-    const tempPassword = generateTemporaryPassword();
-    const emailHtml = buildOfficerEmail({
-      name: `${resetOfficer.firstName} ${resetOfficer.lastName}`,
-      email: resetOfficer.email,
-      tempPassword,
-      authority: authority.name,
-    });
-    window.open("", "_blank").document.write(emailHtml);
-    toast.success(
-      `Password reset. New credentials sent to ${resetOfficer.email}`,
-    );
-    setResetOfficer(null);
+    try {
+      const data = await apiRequest(
+        `/admin/officers/${resetOfficer.id}/reset-password`,
+        { method: "POST" },
+      );
+      const { tempPassword, email, loginUrl, inviteUrl, emailStatus } =
+        data.data;
+      setResetOfficer(null);
+      setCreatedCredentials({
+        name: `${resetOfficer.firstName} ${resetOfficer.lastName}`.trim(),
+        email: email || resetOfficer.email,
+        password: tempPassword,
+        loginUrl: loginUrl || inviteUrl,
+        emailSent: Boolean(emailStatus?.sent),
+        emailMessage: emailStatus?.message,
+      });
+      toast.success(`Password reset. New credentials prepared for ${email}`);
+    } catch (error) {
+      toast.error(getErrorMessage(error.data, error.message));
+    }
   };
 
   const resolutionRate = authority
@@ -692,9 +713,11 @@ export default function AuthorityDetails() {
             </button>
             <button
               onClick={handleAddOfficer}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition-all active:scale-[0.98] cursor-pointer"
+              disabled={busy}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
             >
-              <Key className="h-3.5 w-3.5" /> Create & Send Credentials
+              <Key className="h-3.5 w-3.5" />{" "}
+              {busy ? "Creating..." : "Create & Send Credentials"}
             </button>
           </>
         }
@@ -960,6 +983,12 @@ export default function AuthorityDetails() {
         tone="primary"
         onConfirm={handleResetPassword}
         onCancel={() => setResetOfficer(null)}
+      />
+
+      <CreatedCredentialsModal
+        credentials={createdCredentials}
+        onClose={() => setCreatedCredentials(null)}
+        roleLabel="officer"
       />
     </AdminLayout>
   );

@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Search, ClipboardList } from "lucide-react";
 import { OfficerLayout } from "@/layouts/officer/OfficerLayout";
 import { TaskListItem } from "@/components/officer/TaskListItem";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useOfficer } from "@/context/OfficerContext";
+import { markReportsSeen, REPORT_SEEN_KEYS } from "@/lib/reportBadges";
 
 const statusOptions = [
   "All Status",
@@ -14,19 +15,31 @@ const statusOptions = [
 ];
 
 export default function OfficerAssignedTasks() {
-  const { tasks } = useOfficer();
+  const { tasks, tasksLoading, tasksError, refreshTasks } = useOfficer();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("All Status");
+
+  useEffect(() => {
+    refreshTasks();
+  }, [refreshTasks]);
+
+  useEffect(() => {
+    if (!tasks.length) return;
+    markReportsSeen(
+      tasks.map((task) => task.id),
+      REPORT_SEEN_KEYS.officer,
+    );
+  }, [tasks]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return tasks.filter((t) => {
       const matchQ =
         !q ||
-        t.title.toLowerCase().includes(q) ||
-        t.id.toLowerCase().includes(q) ||
-        t.location.toLowerCase().includes(q) ||
-        t.type.toLowerCase().includes(q);
+        t.title?.toLowerCase().includes(q) ||
+        t.id?.toLowerCase().includes(q) ||
+        t.location?.toLowerCase().includes(q) ||
+        (t.type || t.category || "").toLowerCase().includes(q);
       const matchStatus = status === "All Status" || t.status === status;
       return matchQ && matchStatus;
     });
@@ -72,12 +85,20 @@ export default function OfficerAssignedTasks() {
 
       {/* Task List */}
       <div className="space-y-3">
-        {filtered.length === 0 ? (
+        {tasksLoading ? (
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-8 text-center text-sm font-semibold text-slate-500">
+            Loading assigned tasks…
+          </div>
+        ) : tasksError ? (
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-8 text-center text-sm font-semibold text-rose-600">
+            {tasksError}
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm">
             <EmptyState
               icon={ClipboardList}
               title="No tasks found"
-              description="Try adjusting your search or filter to find tasks."
+              description="Reports assigned to you by your authority will appear here."
             />
           </div>
         ) : (

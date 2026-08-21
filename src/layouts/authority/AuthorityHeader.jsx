@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Menu, Bell, Search, ChevronDown, Building2 } from "lucide-react";
+import { Menu, Search, ChevronDown, Building2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { NotificationBell } from "@/components/ui/NotificationBell";
 
-export function AuthorityHeader({ title, subtitle, onMenuToggle }) {
+export function AuthorityHeader({ title, subtitle, onMenuToggle, unreadCount = 0 }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const authorityName = user?.authority?.name || user?.fullName || "Authority";
@@ -26,6 +27,8 @@ export function AuthorityHeader({ title, subtitle, onMenuToggle }) {
     { label: "Reports", to: "/authority/reports" },
     { label: "Officers", to: "/authority/officers" },
     { label: "Analytics", to: "/authority/analytics" },
+    { label: "Notifications", to: "/authority/notifications" },
+    { label: "Settings", to: "/authority/settings" },
   ];
 
   const filtered = query.trim()
@@ -90,17 +93,16 @@ export function AuthorityHeader({ title, subtitle, onMenuToggle }) {
           )}
         </div>
 
-        {/* Notifications */}
-        <button
-          onClick={() => navigate("/authority/dashboard")}
-          className="relative p-2 rounded-xl text-slate-500 hover:bg-slate-50 border border-slate-200/80 transition-all hover:shadow-sm cursor-pointer"
-        >
-          <Bell className="h-4 w-4" />
-          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white" />
-        </button>
+        <NotificationBell
+          to="/authority/notifications"
+          unreadCount={unreadCount}
+        />
 
         {/* Authority Badge */}
-        <div className="flex items-center gap-2 cursor-pointer p-1 hover:bg-slate-50 rounded-xl transition-colors">
+        <div
+          onClick={() => navigate("/authority/settings")}
+          className="flex items-center gap-2 cursor-pointer p-1 hover:bg-slate-50 rounded-xl transition-colors"
+        >
           <div
             className={`h-8 w-8 rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 text-white flex items-center justify-center font-bold text-xs ring-2 ring-indigo-100`}
           >
