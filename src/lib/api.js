@@ -1,4 +1,5 @@
-const API_BASE = import.meta.env.VITE_API_URL || "/api";
+const API_BASE =
+  import.meta.env.VITE_API_URL || "https://civic-link-backend.onrender.com/api";
 
 export const TOKEN_KEY = "civiclink_token";
 export const USER_KEY = "civiclink_user";
