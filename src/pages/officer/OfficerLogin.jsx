@@ -3,7 +3,7 @@ import { ArrowRight, Lock, Mail, UserRound, ShieldCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { AuthLayout } from "@/pages/auth/AuthLayout";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import { useOfficer } from "@/context/OfficerContext";
 import { mockOfficerCredential } from "@/data/officer/mockOfficerTasks";
 

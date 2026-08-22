@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { AuthLayout } from "@/pages/auth/AuthLayout";
 import { FormField } from "@/components/ui/form-field";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { apiRequest, getErrorMessage } from "@/lib/api";
 import { getRouteForRole, mapBackendRole } from "@/lib/auth";

@@ -4,7 +4,7 @@ import { ShieldCheck, ArrowRight, Lock } from "lucide-react";
 import toast from "react-hot-toast";
 import { AuthLayout } from "@/pages/auth/AuthLayout";
 import { FormField } from "@/components/ui/form-field";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import { apiRequest, getErrorMessage } from "@/lib/api";
 import { getRouteForRole, mapBackendRole } from "@/lib/auth";
 
