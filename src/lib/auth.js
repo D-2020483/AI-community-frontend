@@ -10,6 +10,10 @@ export function mapBackendRole(role) {
   return role.toLowerCase();
 }
 
+export function getSessionRole(user, fallbackRole) {
+  return mapBackendRole(user?.role || fallbackRole);
+}
+
 export function getRouteForRole(role) {
   return ROLE_ROUTES[role] || "/dashboard";
 }
