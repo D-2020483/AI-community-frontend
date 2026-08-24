@@ -24,7 +24,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [inviteUsed, setInviteUsed] = useState(false);
-  const [inviteValid, setInviteValid] = useState(Boolean(inviteFromLink));
+  const [inviteValid, setInviteValid] = useState(false);
 
   const roleLabel =
     role === "admin"
@@ -43,10 +43,11 @@ export default function Login() {
 
   useEffect(() => {
     if (isLoading) return;
+    if (inviteFromLink) return;
     if (isAuthenticated) {
       navigate(getRouteForRole(role), { replace: true });
     }
-  }, [isAuthenticated, isLoading, navigate, role]);
+  }, [isAuthenticated, isLoading, inviteFromLink, navigate, role]);
 
   useEffect(() => {
     if (!inviteFromLink) {
@@ -69,10 +70,11 @@ export default function Login() {
         if (cancelled) return;
         setInviteValid(false);
         setInviteUsed(true);
+        setEmail("");
         toast.error(
           getErrorMessage(
             error.data,
-            "This login link has already been used. Select your role and sign in.",
+            "This invitation link has already been used. Sign in with your email and password.",
           ),
         );
       });
@@ -106,7 +108,7 @@ export default function Login() {
   };
 
   return (
-    <AuthLayout>
+    <AuthLayout roleLocked={inviteValid && !inviteUsed}>
       <div className="space-y-2">
         <div className="flex items-center gap-2 text-lg font-bold text-indigo-600 lg:hidden mb-4">
           <ShieldCheck className="h-6 w-6" /> Civic Link
@@ -115,23 +117,23 @@ export default function Login() {
           {roleLabel} sign in
         </h2>
         <p className="text-xs text-slate-500">
-          Select your role above, then sign in with your official email and
-          password.
+          {inviteValid && !inviteUsed
+            ? "Your email is filled from the invitation. Type your password to open the dashboard."
+            : "Select your role above, then sign in with your official email and password."}
         </p>
       </div>
 
       {inviteUsed && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
-          This emailed login link has already been used. Select{" "}
-          <strong>Authority</strong> or <strong>Officer</strong> above and sign
-          in with your email and password.
+          This invitation link has already been used, so the email is no longer
+          filled in. Sign in with your email and password.
         </div>
       )}
 
       {inviteValid && !inviteUsed && (
         <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-xs text-indigo-700">
-          {roleLabel} is selected. Enter the password from your email to
-          continue. This link can be used only once.
+          {roleLabel} is selected. Your email is shown below. Enter the password
+          from the invitation. This link can be used only once.
         </div>
       )}
 
@@ -144,6 +146,12 @@ export default function Login() {
           icon={<UserRound className="h-4 w-4" />}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          readOnly={inviteValid && !inviteUsed}
+          className={
+            inviteValid && !inviteUsed
+              ? "bg-slate-50 text-slate-800 cursor-default"
+              : ""
+          }
           required
         />
 

@@ -27,6 +27,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StatusBadge } from "@/components/ui/Badge";
 import { apiRequest, getErrorMessage } from "@/lib/api";
 import { mapAuthorityFromApi } from "@/lib/adminMappers";
+import { CreatedCredentialsModal } from "@/components/admin/CreatedCredentialsModal";
 import { toast } from "react-hot-toast";
 
 function AuthorityLogo({ name, logo, status }) {
@@ -447,7 +448,7 @@ export default function AuthorityManagement() {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         title="Create New Authority"
-        subtitle="A password is generated and emailed with the login link"
+        subtitle="An invitation link is shown after save"
         size="lg"
         footer={
           <>
@@ -590,10 +591,11 @@ export default function AuthorityManagement() {
           </div>
           <div className="rounded-xl bg-indigo-50/70 border border-indigo-100 p-4">
             <p className="text-[11px] text-indigo-700 leading-relaxed">
-              <strong className="font-bold">On save:</strong> A password will
-              be generated automatically and emailed with the login link to{" "}
-              <strong>{form.email || "the official email"}</strong>. The
-              authority can then sign in with that email and password.
+              <strong className="font-bold">On save:</strong> An invitation
+              link appears in a popup. Opening it once takes the authority to
+              login with their email already filled in. They type the password
+              to reach the dashboard. Using the link again will not fill the
+              email — they must sign in with email and password.
             </p>
           </div>
         </form>
@@ -735,73 +737,11 @@ export default function AuthorityManagement() {
         onCancel={() => setDeleteAuth(null)}
         loading={busy}
       />
-      <Modal
-        open={!!createdCredentials}
+      <CreatedCredentialsModal
+        credentials={createdCredentials}
         onClose={() => setCreatedCredentials(null)}
-        title="Authority login details"
-        subtitle={
-          createdCredentials?.emailSent
-            ? "These details were also emailed to the official address"
-            : "Email was not sent. Copy these details and share them securely"
-        }
-        size="md"
-        footer={
-          <button
-            onClick={() => setCreatedCredentials(null)}
-            className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl cursor-pointer"
-          >
-            Done
-          </button>
-        }
-      >
-        {createdCredentials && (
-          <div className="space-y-3 text-sm">
-            <p className="text-xs text-slate-500">
-              {createdCredentials.name} can sign in to the authority workspace
-              with:
-            </p>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
-              <p>
-                <span className="text-[10px] font-bold uppercase text-slate-400">
-                  Login page
-                </span>
-                <br />
-                <a
-                  href={createdCredentials.loginUrl}
-                  className="text-indigo-600 font-semibold break-all"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {createdCredentials.loginUrl}
-                </a>
-              </p>
-              <p>
-                <span className="text-[10px] font-bold uppercase text-slate-400">
-                  Official email
-                </span>
-                <br />
-                <span className="font-semibold text-slate-800">
-                  {createdCredentials.email}
-                </span>
-              </p>
-              <p>
-                <span className="text-[10px] font-bold uppercase text-slate-400">
-                  Password
-                </span>
-                <br />
-                <span className="font-mono font-semibold text-indigo-700">
-                  {createdCredentials.password}
-                </span>
-              </p>
-            </div>
-            {createdCredentials.emailMessage && (
-              <p className="text-[11px] text-slate-500">
-                {createdCredentials.emailMessage}
-              </p>
-            )}
-          </div>
-        )}
-      </Modal>
+        roleLabel="authority"
+      />
     </AdminLayout>
   );
 }

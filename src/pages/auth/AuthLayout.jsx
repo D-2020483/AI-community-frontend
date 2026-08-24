@@ -5,7 +5,7 @@ import { servicePhoto } from "@/data/mockData";
 
 const previewRoles = ["citizen", "authority", "officer", "admin"];
 
-export function AuthLayout({ children }) {
+export function AuthLayout({ children, roleLocked = false }) {
   const { role, setRole } = useAuth();
 
   return (
@@ -79,12 +79,14 @@ export function AuthLayout({ children }) {
               {previewRoles.map((r) => (
                 <button
                   key={r}
+                  type="button"
+                  disabled={roleLocked && r !== role}
                   onClick={() => setRole(r)}
                   className={`rounded-lg px-3 py-1.5 capitalize transition-all ${
                     role === r
                       ? "bg-indigo-600 font-semibold text-white shadow-sm"
                       : "hover:text-slate-900"
-                  }`}
+                  } ${roleLocked && r !== role ? "opacity-40 cursor-not-allowed" : ""}`}
                 >
                   {r}
                 </button>

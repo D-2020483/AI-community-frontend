@@ -1,20 +1,41 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
+import { Check, Copy } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
+import { toCurrentOriginUrl } from "@/lib/auth";
 
 export function CreatedCredentialsModal({
   credentials,
   onClose,
   roleLabel = "officer",
 }) {
+  const [copied, setCopied] = useState(false);
+  const inviteUrl = useMemo(
+    () => toCurrentOriginUrl(credentials?.loginUrl),
+    [credentials?.loginUrl],
+  );
+
+  const copyInvite = async () => {
+    if (!inviteUrl) return;
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  const workspaceLabel = roleLabel === "authority" ? "authority" : "officer";
+
   return (
     <Modal
       open={!!credentials}
       onClose={onClose}
-      title={`${roleLabel === "authority" ? "Authority" : "Officer"} login details`}
+      title="Invitation link"
       subtitle={
         credentials?.emailSent
-          ? "These details were also emailed to the official address"
-          : "Email was not sent. Copy these details and share them securely"
+          ? "Share this one-time link. It was also emailed to the official address"
+          : "Email was not sent. Copy this one-time invitation link and share it securely"
       }
       size="md"
       footer={
@@ -29,27 +50,45 @@ export function CreatedCredentialsModal({
       {credentials && (
         <div className="space-y-3 text-sm">
           <p className="text-xs text-slate-500">
-            {credentials.name} can sign in to the {roleLabel} workspace with:
+            {credentials.name} opens this link once. The {workspaceLabel} login
+            shows their email; they type the password and enter the dashboard.
+            Opening the link again will not fill the email — they sign in with
+            email and password.
           </p>
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
-            <p>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+            <div>
               <span className="text-[10px] font-bold uppercase text-slate-400">
-                Login / invite link
+                Invitation link
               </span>
-              <br />
-              {credentials.loginUrl ? (
-                <a
-                  href={credentials.loginUrl}
-                  className="text-indigo-600 font-semibold break-all"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {credentials.loginUrl}
-                </a>
-              ) : (
-                <span className="font-semibold text-slate-800">—</span>
-              )}
-            </p>
+              <div className="mt-1 flex items-start gap-2">
+                {inviteUrl ? (
+                  <a
+                    href={inviteUrl}
+                    className="text-indigo-600 font-semibold break-all flex-1"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {inviteUrl}
+                  </a>
+                ) : (
+                  <span className="font-semibold text-slate-800">—</span>
+                )}
+                {inviteUrl && (
+                  <button
+                    type="button"
+                    onClick={copyInvite}
+                    className="shrink-0 inline-flex items-center gap-1 px-2 py-1 text-[10px] font-bold uppercase text-indigo-700 bg-white border border-indigo-100 rounded-lg hover:bg-indigo-50 cursor-pointer"
+                  >
+                    {copied ? (
+                      <Check className="h-3.5 w-3.5" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5" />
+                    )}
+                    {copied ? "Copied" : "Copy"}
+                  </button>
+                )}
+              </div>
+            </div>
             <p>
               <span className="text-[10px] font-bold uppercase text-slate-400">
                 Official email
