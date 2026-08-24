@@ -14,7 +14,7 @@ const LOGIN_ROLES = ["citizen", "authority", "officer", "admin"];
 export default function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { login, role, setRole, isAuthenticated, isLoading } = useAuth();
+  const { login, logout, role, setRole, isAuthenticated, isLoading } = useAuth();
 
   const inviteFromLink = searchParams.get("invite") || "";
   const roleFromLink = searchParams.get("role") || "";
@@ -25,6 +25,8 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [inviteUsed, setInviteUsed] = useState(false);
   const [inviteValid, setInviteValid] = useState(Boolean(inviteFromLink));
+
+  const lockInviteRole = Boolean(inviteFromLink && inviteValid && !inviteUsed);
 
   const roleLabel =
     role === "admin"
@@ -43,10 +45,29 @@ export default function Login() {
 
   useEffect(() => {
     if (isLoading) return;
+    if (inviteFromLink) {
+      if (isAuthenticated) {
+        logout({ resetRole: false }).then(() => {
+          if (LOGIN_ROLES.includes(roleFromLink)) {
+            setRole(roleFromLink);
+          }
+        });
+      }
+      return;
+    }
     if (isAuthenticated) {
       navigate(getRouteForRole(role), { replace: true });
     }
-  }, [isAuthenticated, isLoading, navigate, role]);
+  }, [
+    inviteFromLink,
+    isAuthenticated,
+    isLoading,
+    logout,
+    navigate,
+    role,
+    roleFromLink,
+    setRole,
+  ]);
 
   useEffect(() => {
     if (!inviteFromLink) {
@@ -106,7 +127,7 @@ export default function Login() {
   };
 
   return (
-    <AuthLayout>
+    <AuthLayout lockRole={lockInviteRole}>
       <div className="space-y-2">
         <div className="flex items-center gap-2 text-lg font-bold text-indigo-600 lg:hidden mb-4">
           <ShieldCheck className="h-6 w-6" /> Civic Link
@@ -115,8 +136,9 @@ export default function Login() {
           {roleLabel} sign in
         </h2>
         <p className="text-xs text-slate-500">
-          Select your role above, then sign in with your official email and
-          password.
+          {lockInviteRole
+            ? "Your email is filled in from the invitation. Enter the password from your email to activate this account. This link can be used only once."
+            : "Select your role above, then sign in with your official email and password."}
         </p>
       </div>
 
@@ -130,8 +152,8 @@ export default function Login() {
 
       {inviteValid && !inviteUsed && (
         <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-xs text-indigo-700">
-          {roleLabel} is selected. Enter the password from your email to
-          continue. This link can be used only once.
+          {roleLabel} login is selected. Enter your password to continue. After
+          this sign-in, the invitation link cannot be used again.
         </div>
       )}
 
@@ -145,6 +167,7 @@ export default function Login() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
+          readOnly={lockInviteRole}
         />
 
         <FormField
@@ -156,6 +179,7 @@ export default function Login() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
+          autoFocus={lockInviteRole}
         />
 
         <div className="flex items-center justify-between text-xs">
@@ -186,7 +210,7 @@ export default function Login() {
         </Button>
       </form>
 
-      {role === "citizen" && (
+      {role === "citizen" && !inviteFromLink && (
         <p className="text-center text-xs text-slate-500">
           New to Civic Link?{" "}
           <button
