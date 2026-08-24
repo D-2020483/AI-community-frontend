@@ -264,12 +264,11 @@ export default function AuthorityDetails() {
     }
   };
 
-  const resolutionRate = authority
-    ? Math.round(
-        (authority.resolvedReports /
-          (authority.resolvedReports + authority.activeReports + 200)) *
-          100,
-      )
+  const reportTotal = authority
+    ? authority.resolvedReports + authority.activeReports
+    : 0;
+  const resolutionRate = reportTotal
+    ? Math.round((authority.resolvedReports / reportTotal) * 100)
     : 0;
 
   if (loading || !authority) {
