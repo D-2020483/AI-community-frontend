@@ -32,7 +32,6 @@ import { StatusBadge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { authoritiesData, officersData } from "@/data/adminData";
 import { toast } from "react-hot-toast";
 import { apiRequest, getErrorMessage } from "@/lib/api";
 import { mapAuthorityFromApi, mapOfficerFromApi } from "@/lib/adminMappers";

@@ -27,7 +27,6 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StatusBadge } from "@/components/ui/Badge";
-import { categoriesData } from "@/data/adminData";
 import { apiRequest, getErrorMessage } from "@/lib/api";
 import { mapCategoryFromApi } from "@/lib/adminMappers";
 import { toast } from "react-hot-toast";
@@ -71,7 +70,7 @@ export default function CategoriesManagement() {
       setCategories((data.data?.categories || []).map(mapCategoryFromApi));
     } catch (error) {
       toast.error(getErrorMessage(error.data, "Failed to load categories"));
-      setCategories(categoriesData);
+      setCategories([]);
     } finally {
       setLoading(false);
     }

@@ -25,7 +25,6 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StatusBadge } from "@/components/ui/Badge";
-import { authoritiesData } from "@/data/adminData";
 import { apiRequest, getErrorMessage } from "@/lib/api";
 import { mapAuthorityFromApi } from "@/lib/adminMappers";
 import { toast } from "react-hot-toast";
@@ -94,7 +93,7 @@ export default function AuthorityManagement() {
       } catch (error) {
         if (!cancelled) {
           toast.error(getErrorMessage(error.data, "Failed to load authorities"));
-          setAuthorities(authoritiesData);
+          setAuthorities([]);
         }
       } finally {
         if (!cancelled) setLoading(false);

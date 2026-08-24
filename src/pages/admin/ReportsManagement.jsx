@@ -75,34 +75,6 @@ function getStepIndex(status) {
   return idx === -1 ? 0 : idx;
 }
 
-const mockComments = [
-  {
-    id: 1,
-    author: "Samuel Johnson",
-    role: "Officer",
-    text: "We've inspected the site and scheduled repairs for tomorrow morning.",
-    time: "Today, 11:20 AM",
-    color: "bg-indigo-50 text-indigo-600",
-  },
-  {
-    id: 2,
-    author: "Amara Okafor",
-    role: "Citizen",
-    text: "Thank you for the quick response. The pothole is on the eastbound lane.",
-    time: "Today, 10:45 AM",
-    color: "bg-emerald-50 text-emerald-600",
-  },
-  {
-    id: 3,
-    author: "Public Works Dept.",
-    role: "Authority",
-    text: "Assigned to our Road Maintenance team for immediate action.",
-    time: "Today, 10:30 AM",
-    color: "bg-violet-50 text-violet-600",
-  },
-];
-
-
 export default function ReportsManagement() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -918,37 +890,9 @@ export default function ReportsManagement() {
                   Citizen Comments
                 </h5>
               </div>
-              <div className="space-y-3">
-                {mockComments.map((c) => (
-                  <div key={c.id} className="flex items-start gap-3">
-                    <div
-                      className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 ${c.color}`}
-                    >
-                      {c.author
-                        .split(" ")
-                        .map((n) => n[0])
-                        .slice(0, 2)
-                        .join("")}
-                    </div>
-                    <div className="flex-1 bg-slate-50/80 border border-slate-100 rounded-xl p-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-bold text-slate-900">
-                          {c.author}{" "}
-                          <span className="text-[10px] font-semibold text-slate-400">
-                            ({c.role})
-                          </span>
-                        </p>
-                        <span className="text-[10px] text-slate-400">
-                          {c.time}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                        {c.text}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <p className="text-xs text-slate-400 bg-slate-50/80 border border-slate-100 rounded-xl p-4">
+                No comments on this report yet.
+              </p>
             </div>
           </div>
         )}

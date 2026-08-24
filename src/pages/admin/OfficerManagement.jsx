@@ -22,7 +22,6 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StatusBadge } from "@/components/ui/Badge";
-import { officersData, authoritiesData } from "@/data/adminData";
 import { apiRequest, getErrorMessage } from "@/lib/api";
 import { mapAuthorityOption, mapOfficerFromApi } from "@/lib/adminMappers";
 import { toast } from "react-hot-toast";
@@ -123,10 +122,8 @@ export default function OfficerManagement() {
       } catch (error) {
         if (!cancelled) {
           toast.error(getErrorMessage(error.data, "Failed to load officers"));
-          setOfficers(officersData);
-          setAuthorityOptions(
-            authoritiesData.map((a) => ({ id: a.id, name: a.name })),
-          );
+          setOfficers([]);
+          setAuthorityOptions([]);
         }
       } finally {
         if (!cancelled) setLoading(false);

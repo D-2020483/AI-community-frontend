@@ -14,8 +14,36 @@ import {
 } from "lucide-react";
 import { AdminLayout } from "@/layouts/admin/AdminLayout";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { systemSettings } from "@/data/adminData";
 import { toast } from "react-hot-toast";
+
+const defaultSettings = {
+  general: {
+    systemName: "Civic Link",
+    supportEmail: "support@civiclink.gov",
+    baseUrl: "https://civiclink.gov",
+    timezone: "GMT+1",
+  },
+  email: {
+    enableAutomation: true,
+    authorityWelcome: true,
+    officerWelcome: true,
+    sendWeeklyDigest: true,
+    senderName: "Civic Link Admin",
+    senderEmail: "no-reply@civiclink.gov",
+  },
+  security: {
+    forcePasswordChange: true,
+    minPasswordLength: 8,
+    sessionTimeout: "30 min",
+    twoFactorAuth: false,
+  },
+  report: {
+    autoAssign: true,
+    escalationDays: 5,
+    slaDays: 7,
+    allowCitizenComments: true,
+  },
+};
 
 const inputClass =
   "w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/15 shadow-sm transition-all";
@@ -76,10 +104,10 @@ function SectionCard({ icon: Icon, title, subtitle, children, onSave }) {
 }
 
 export default function SettingsPage() {
-  const [general, setGeneral] = useState(systemSettings.general);
-  const [email, setEmail] = useState(systemSettings.email);
-  const [security, setSecurity] = useState(systemSettings.security);
-  const [report, setReport] = useState(systemSettings.report);
+  const [general, setGeneral] = useState(defaultSettings.general);
+  const [email, setEmail] = useState(defaultSettings.email);
+  const [security, setSecurity] = useState(defaultSettings.security);
+  const [report, setReport] = useState(defaultSettings.report);
 
   const saveGeneral = () => {
     toast.success("General settings saved successfully");
