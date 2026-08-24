@@ -6,11 +6,13 @@ import React, {
   useEffect,
 } from "react";
 import {
+  AUTH_EXPIRED_EVENT,
   apiRequest,
   clearAuthStorage,
+  getRefreshToken,
   getToken,
+  setAuthSession,
   setStoredUser,
-  setToken,
 } from "@/lib/api";
 import { getRouteForRole, mapBackendRole } from "@/lib/auth";
 
@@ -50,9 +52,9 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const applySession = useCallback(
-    (profile, accessToken) => {
+    (profile, session) => {
       const mappedRole = mapBackendRole(profile.role);
-      setToken(accessToken);
+      setAuthSession(session);
       setStoredUser(profile);
       setUser(profile);
       handleSetRole(mappedRole);
@@ -67,7 +69,8 @@ export const AuthProvider = ({ children }) => {
 
     const restoreSession = async () => {
       const token = getToken();
-      if (!token) {
+      const refreshToken = getRefreshToken();
+      if (!token && !refreshToken) {
         if (!cancelled) setIsLoading(false);
         return;
       }
@@ -75,7 +78,11 @@ export const AuthProvider = ({ children }) => {
       try {
         const data = await apiRequest("/auth/me");
         if (!cancelled) {
-          applySession(data.data.user, token);
+          applySession(data.data.user, {
+            access_token: getToken(),
+            refresh_token: getRefreshToken(),
+            expires_at: undefined,
+          });
         }
       } catch {
         if (!cancelled) {
@@ -113,7 +120,7 @@ export const AuthProvider = ({ children }) => {
         );
       }
 
-      const mappedRole = applySession(profile, session.access_token);
+      const mappedRole = applySession(profile, session);
       const route = requiresPasswordChange
         ? "/change-password"
         : getRouteForRole(mappedRole);
@@ -173,6 +180,16 @@ export const AuthProvider = ({ children }) => {
       setIsAuthenticated(false);
       handleSetRole("citizen");
     }
+  }, [handleSetRole]);
+
+  useEffect(() => {
+    const onExpired = () => {
+      setUser(null);
+      setIsAuthenticated(false);
+      handleSetRole("citizen");
+    };
+    window.addEventListener(AUTH_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, onExpired);
   }, [handleSetRole]);
 
   return (

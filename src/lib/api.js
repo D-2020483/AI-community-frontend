@@ -2,7 +2,10 @@ const API_BASE =
   import.meta.env.VITE_API_URL || "https://civic-link-backend.onrender.com/api";
 
 export const TOKEN_KEY = "civiclink_token";
+export const REFRESH_TOKEN_KEY = "civiclink_refresh_token";
+export const TOKEN_EXPIRES_AT_KEY = "civiclink_token_expires_at";
 export const USER_KEY = "civiclink_user";
+export const AUTH_EXPIRED_EVENT = "civiclink:auth-expired";
 
 export function getToken() {
   try {
@@ -22,6 +25,65 @@ export function setToken(token) {
   } catch {
     /* ignore storage errors */
   }
+}
+
+export function getRefreshToken() {
+  try {
+    return localStorage.getItem(REFRESH_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setRefreshToken(token) {
+  try {
+    if (token) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, token);
+    } else {
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
+    }
+  } catch {
+    /* ignore storage errors */
+  }
+}
+
+export function getTokenExpiresAt() {
+  try {
+    const raw = localStorage.getItem(TOKEN_EXPIRES_AT_KEY);
+    return raw ? Number(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setTokenExpiresAt(expiresAt) {
+  try {
+    if (expiresAt) {
+      localStorage.setItem(TOKEN_EXPIRES_AT_KEY, String(expiresAt));
+    } else {
+      localStorage.removeItem(TOKEN_EXPIRES_AT_KEY);
+    }
+  } catch {
+    /* ignore storage errors */
+  }
+}
+
+export function setAuthSession(session) {
+  if (!session) {
+    setToken(null);
+    setRefreshToken(null);
+    setTokenExpiresAt(null);
+    return;
+  }
+
+  if (typeof session === "string") {
+    setToken(session);
+    return;
+  }
+
+  setToken(session.access_token || null);
+  if (session.refresh_token) setRefreshToken(session.refresh_token);
+  if (session.expires_at) setTokenExpiresAt(session.expires_at);
 }
 
 export function getStoredUser() {
@@ -47,6 +109,8 @@ export function setStoredUser(user) {
 
 export function clearAuthStorage() {
   setToken(null);
+  setRefreshToken(null);
+  setTokenExpiresAt(null);
   setStoredUser(null);
 }
 
@@ -56,12 +120,80 @@ export function getErrorMessage(data, fallback = "Request failed") {
   return fallback;
 }
 
-export async function apiRequest(path, options = {}) {
+function isPublicAuthPath(path) {
+  return (
+    path.startsWith("/auth/login") ||
+    path.startsWith("/auth/register") ||
+    path.startsWith("/auth/refresh") ||
+    path.startsWith("/auth/accept-invite") ||
+    path.startsWith("/auth/invite") ||
+    path.startsWith("/auth/login-invite")
+  );
+}
+
+function isAccessTokenExpiringSoon() {
+  const expiresAt = getTokenExpiresAt();
+  if (!expiresAt) return Boolean(getRefreshToken());
+  return Date.now() / 1000 >= expiresAt - 60;
+}
+
+let refreshPromise = null;
+
+async function refreshAccessToken() {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return null;
+
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const response = await fetch(`${API_BASE}/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+
+      let data = {};
+      try {
+        data = await response.json();
+      } catch {
+        data = {};
+      }
+
+      if (!response.ok || !data.data?.session?.access_token) {
+        return null;
+      }
+
+      setAuthSession(data.data.session);
+      return data.data.session.access_token;
+    })().finally(() => {
+      refreshPromise = null;
+    });
+  }
+
+  return refreshPromise;
+}
+
+function expireLocalSession() {
+  if (!getToken() && !getRefreshToken()) return;
+  clearAuthStorage();
+  try {
+    window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+  } catch {
+    /* ignore */
+  }
+}
+
+export async function apiRequest(path, options = {}, retry = true) {
+  if (!isPublicAuthPath(path) && getRefreshToken() && isAccessTokenExpiringSoon()) {
+    await refreshAccessToken();
+  }
+
   const token = getToken();
-  const headers = {
-    "Content-Type": "application/json",
-    ...options.headers,
-  };
+  const headers = { ...options.headers };
+  const hasBody = options.body !== undefined && options.body !== null;
+
+  if (hasBody && !headers["Content-Type"] && !headers["content-type"]) {
+    headers["Content-Type"] = "application/json";
+  }
 
   if (token && !headers.Authorization) {
     headers.Authorization = `Bearer ${token}`;
@@ -77,6 +209,16 @@ export async function apiRequest(path, options = {}) {
     data = await response.json();
   } catch {
     data = {};
+  }
+
+  if (response.status === 401 && retry && !isPublicAuthPath(path)) {
+    if (getRefreshToken()) {
+      const nextToken = await refreshAccessToken();
+      if (nextToken) {
+        return apiRequest(path, options, false);
+      }
+    }
+    expireLocalSession();
   }
 
   if (!response.ok) {
