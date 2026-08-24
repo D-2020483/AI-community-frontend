@@ -5,7 +5,7 @@ import { servicePhoto } from "@/data/mockData";
 
 const previewRoles = ["citizen", "authority", "officer", "admin"];
 
-export function AuthLayout({ children, lockRole = false }) {
+export function AuthLayout({ children }) {
   const { role, setRole } = useAuth();
 
   return (
@@ -76,28 +76,19 @@ export function AuthLayout({ children, lockRole = false }) {
           <div className="flex items-center justify-between rounded-xl bg-white p-1 text-xs font-medium text-slate-500 shadow-sm ring-1 ring-slate-200/70">
             <span className="px-3 text-slate-400">Sign in as</span>
             <div className="flex gap-1">
-              {previewRoles.map((r) => {
-                const lockedOut = lockRole && r !== role;
-                return (
-                  <button
-                    key={r}
-                    type="button"
-                    disabled={lockedOut}
-                    onClick={() => {
-                      if (!lockedOut) setRole(r);
-                    }}
-                    className={`rounded-lg px-3 py-1.5 capitalize transition-all ${
-                      role === r
-                        ? "bg-indigo-600 font-semibold text-white shadow-sm"
-                        : lockedOut
-                          ? "cursor-not-allowed opacity-40"
-                          : "hover:text-slate-900"
-                    }`}
-                  >
-                    {r}
-                  </button>
-                );
-              })}
+              {previewRoles.map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setRole(r)}
+                  className={`rounded-lg px-3 py-1.5 capitalize transition-all ${
+                    role === r
+                      ? "bg-indigo-600 font-semibold text-white shadow-sm"
+                      : "hover:text-slate-900"
+                  }`}
+                >
+                  {r}
+                </button>
+              ))}
             </div>
           </div>
           {/* Form Content */}

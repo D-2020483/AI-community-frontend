@@ -3,6 +3,7 @@ import { Navigate } from "react-router-dom";
 import { AuthoritySidebar } from "@/layouts/authority/AuthoritySidebar";
 import { AuthorityHeader } from "@/layouts/authority/AuthorityHeader";
 import { useAuth } from "@/context/AuthContext";
+import { getSessionRole } from "@/lib/auth";
 import { useWorkspaceInbox } from "@/hooks/useWorkspaceInbox";
 import {
   getAssignedReports,
@@ -11,7 +12,8 @@ import {
 import { REPORT_SEEN_KEYS } from "@/lib/reportBadges";
 
 export function AuthorityLayout({ title, subtitle, children }) {
-  const { isAuthenticated, role } = useAuth();
+  const { isAuthenticated, role, user } = useAuth();
+  const sessionRole = getSessionRole(user, role);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const inbox = useWorkspaceInbox({
     role: "authority",
@@ -22,7 +24,7 @@ export function AuthorityLayout({ title, subtitle, children }) {
     seenKey: REPORT_SEEN_KEYS.authority,
   });
 
-  if (!isAuthenticated || role !== "authority") {
+  if (!isAuthenticated || sessionRole !== "authority") {
     return <Navigate to="/login" replace />;
   }
 

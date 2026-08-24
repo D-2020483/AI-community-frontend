@@ -11,37 +11,13 @@ import {
   clearAuthStorage,
   getRefreshToken,
   getToken,
+  getTokenExpiresAt,
   setAuthSession,
   setStoredUser,
 } from "@/lib/api";
 import { getRouteForRole, mapBackendRole } from "@/lib/auth";
 
 const ROLE_STORAGE_KEY = "civiclink_role";
-const LOGIN_ROLES = ["citizen", "authority", "officer", "admin"];
-
-function getInviteSearchParams() {
-  if (typeof window === "undefined") {
-    return { invite: "", role: "" };
-  }
-  const params = new URLSearchParams(window.location.search);
-  return {
-    invite: params.get("invite") || "",
-    role: params.get("role") || "",
-  };
-}
-
-function getInitialRole() {
-  try {
-    const { invite, role } = getInviteSearchParams();
-    if (invite && LOGIN_ROLES.includes(role)) {
-      localStorage.setItem(ROLE_STORAGE_KEY, role);
-      return role;
-    }
-    return localStorage.getItem(ROLE_STORAGE_KEY) || "citizen";
-  } catch {
-    return "citizen";
-  }
-}
 
 const AuthContext = createContext({
   role: "citizen",
@@ -56,7 +32,13 @@ const AuthContext = createContext({
 });
 
 export const AuthProvider = ({ children }) => {
-  const [role, setRoleState] = useState(getInitialRole);
+  const [role, setRoleState] = useState(() => {
+    try {
+      return localStorage.getItem(ROLE_STORAGE_KEY) || "citizen";
+    } catch {
+      return "citizen";
+    }
+  });
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -87,31 +69,6 @@ export const AuthProvider = ({ children }) => {
     let cancelled = false;
 
     const restoreSession = async () => {
-      const { invite, role: roleFromLink } = getInviteSearchParams();
-
-      // Invitation links must always land on login for that role, even if an
-      // admin (or any other user) is already signed in on this browser.
-      if (invite) {
-        const existingToken = getToken();
-        if (existingToken) {
-          try {
-            await apiRequest("/auth/logout", { method: "POST" });
-          } catch {
-            /* ignore logout errors so the invite form still opens */
-          }
-        }
-        clearAuthStorage();
-        if (!cancelled) {
-          setUser(null);
-          setIsAuthenticated(false);
-          if (LOGIN_ROLES.includes(roleFromLink)) {
-            handleSetRole(roleFromLink);
-          }
-          setIsLoading(false);
-        }
-        return;
-      }
-
       const token = getToken();
       const refreshToken = getRefreshToken();
       if (!token && !refreshToken) {
@@ -125,11 +82,11 @@ export const AuthProvider = ({ children }) => {
           applySession(data.data.user, {
             access_token: getToken(),
             refresh_token: getRefreshToken(),
-            expires_at: undefined,
+            expires_at: getTokenExpiresAt() || undefined,
           });
         }
-      } catch {
-        if (!cancelled) {
+      } catch (error) {
+        if (!cancelled && error?.status === 401) {
           clearAuthStorage();
           setUser(null);
           setIsAuthenticated(false);
@@ -143,7 +100,7 @@ export const AuthProvider = ({ children }) => {
     return () => {
       cancelled = true;
     };
-  }, [applySession, handleSetRole]);
+  }, [applySession]);
 
   const login = useCallback(
     async (email, password, { expectedRole, inviteToken } = {}) => {
@@ -210,7 +167,7 @@ export const AuthProvider = ({ children }) => {
     return nextUser;
   }, []);
 
-  const logout = useCallback(async ({ resetRole = true } = {}) => {
+  const logout = useCallback(async () => {
     try {
       const token = getToken();
       if (token) {
@@ -222,9 +179,7 @@ export const AuthProvider = ({ children }) => {
       clearAuthStorage();
       setUser(null);
       setIsAuthenticated(false);
-      if (resetRole) {
-        handleSetRole("citizen");
-      }
+      handleSetRole("citizen");
     }
   }, [handleSetRole]);
 

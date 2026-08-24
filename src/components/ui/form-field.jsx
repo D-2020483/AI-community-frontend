@@ -19,11 +19,7 @@ export function FormField({ label, icon, size = "lg", className, ...props }) {
           ) : null}
           <Input
             size={size}
-            className={cn(
-              icon ? "pl-10" : "",
-              props.readOnly ? "bg-slate-50 text-slate-700" : "",
-              className,
-            )}
+            className={cn(icon ? "pl-10" : "", className)}
             {...props}
           />
         </div>

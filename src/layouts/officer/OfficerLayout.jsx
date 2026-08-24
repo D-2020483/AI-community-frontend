@@ -3,6 +3,7 @@ import { Navigate } from "react-router-dom";
 import { OfficerSidebar } from "@/layouts/officer/OfficerSidebar";
 import { OfficerHeader } from "@/layouts/officer/OfficerHeader";
 import { useAuth } from "@/context/AuthContext";
+import { getSessionRole } from "@/lib/auth";
 import { useWorkspaceInbox } from "@/hooks/useWorkspaceInbox";
 import {
   getOfficerNotifications,
@@ -11,7 +12,8 @@ import {
 import { REPORT_SEEN_KEYS } from "@/lib/reportBadges";
 
 export function OfficerLayout({ title, subtitle, children }) {
-  const { isAuthenticated, role } = useAuth();
+  const { isAuthenticated, role, user } = useAuth();
+  const sessionRole = getSessionRole(user, role);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const inbox = useWorkspaceInbox({
     role: "officer",
@@ -22,7 +24,7 @@ export function OfficerLayout({ title, subtitle, children }) {
     seenKey: REPORT_SEEN_KEYS.officer,
   });
 
-  if (!isAuthenticated || role !== "officer") {
+  if (!isAuthenticated || sessionRole !== "officer") {
     return <Navigate to="/login" replace />;
   }
 

@@ -81,9 +81,22 @@ export function setAuthSession(session) {
     return;
   }
 
-  setToken(session.access_token || null);
-  if (session.refresh_token) setRefreshToken(session.refresh_token);
-  if (session.expires_at) setTokenExpiresAt(session.expires_at);
+  if (session.access_token) {
+    setToken(session.access_token);
+  }
+  if (session.refresh_token) {
+    setRefreshToken(session.refresh_token);
+  }
+
+  const expiresAt = Number(
+    session.expires_at ||
+      (session.expires_in
+        ? Math.floor(Date.now() / 1000) + Number(session.expires_in)
+        : 0),
+  );
+  if (expiresAt) {
+    setTokenExpiresAt(expiresAt);
+  }
 }
 
 export function getStoredUser() {
@@ -125,6 +138,7 @@ function isPublicAuthPath(path) {
     path.startsWith("/auth/login") ||
     path.startsWith("/auth/register") ||
     path.startsWith("/auth/refresh") ||
+    path.startsWith("/auth/logout") ||
     path.startsWith("/auth/accept-invite") ||
     path.startsWith("/auth/invite") ||
     path.startsWith("/auth/login-invite")
@@ -133,7 +147,7 @@ function isPublicAuthPath(path) {
 
 function isAccessTokenExpiringSoon() {
   const expiresAt = getTokenExpiresAt();
-  if (!expiresAt) return Boolean(getRefreshToken());
+  if (!expiresAt || Number.isNaN(expiresAt)) return false;
   return Date.now() / 1000 >= expiresAt - 60;
 }
 
@@ -212,13 +226,21 @@ export async function apiRequest(path, options = {}, retry = true) {
   }
 
   if (response.status === 401 && retry && !isPublicAuthPath(path)) {
+    const currentToken = getToken();
+    if (currentToken && token && currentToken !== token) {
+      return apiRequest(path, options, false);
+    }
+
     if (getRefreshToken()) {
       const nextToken = await refreshAccessToken();
       if (nextToken) {
         return apiRequest(path, options, false);
       }
     }
-    expireLocalSession();
+
+    if (token || getToken() || getRefreshToken()) {
+      expireLocalSession();
+    }
   }
 
   if (!response.ok) {
