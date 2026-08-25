@@ -6,6 +6,7 @@ import { AuthLayout } from "@/pages/auth/AuthLayout";
 import { FormField } from "@/components/ui/form-field";
 import { Button } from "@/components/ui/button";
 import { apiRequest, getErrorMessage } from "@/lib/api";
+import { ACTION_BTN, isValidEmail, isValidPassword } from "@/lib/actionState";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -26,8 +27,18 @@ export default function Register() {
     }));
   };
 
+  const canSubmit = Boolean(
+    formData.fullName.trim().length >= 2 &&
+      isValidEmail(formData.email) &&
+      isValidPassword(formData.password) &&
+      formData.password === formData.confirmPassword &&
+      (!formData.phone.trim() || formData.phone.trim().length >= 7) &&
+      !loading,
+  );
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!canSubmit) return;
     setLoading(true);
 
     try {
@@ -117,8 +128,8 @@ export default function Register() {
         <Button
           type="submit"
           full
-          disabled={loading}
-          className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl shadow-sm shadow-indigo-600/20 transition-all duration-200 hover:shadow-md hover:shadow-indigo-600/30 active:scale-[0.99] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={!canSubmit}
+          className={`w-full inline-flex items-center justify-center gap-2 py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl shadow-sm shadow-indigo-600/20 transition-all duration-200 hover:shadow-md hover:shadow-indigo-600/30 active:scale-[0.99] cursor-pointer ${ACTION_BTN}`}
         >
           {loading ? "Creating account..." : "Create account"}
           {!loading && <ArrowRight className="h-4 w-4 stroke-[2.5]" />}

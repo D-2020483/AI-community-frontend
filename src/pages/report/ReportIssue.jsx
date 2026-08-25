@@ -13,6 +13,7 @@ import {
   saveTrackedReport,
   toStoredImageUrl,
 } from "@/lib/reportService";
+import { isValidCoordPair } from "@/lib/actionState";
 
 export default function ReportIssue() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -25,6 +26,8 @@ export default function ReportIssue() {
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
+  const [coords, setCoords] = useState(null);
+  const [locationConfirmed, setLocationConfirmed] = useState(false);
 
   //AI state / submission status
   const [submitting, setSubmitting] = useState(false);
@@ -49,11 +52,18 @@ export default function ReportIssue() {
       return file ? URL.createObjectURL(file) : null;
     });
   };
-  // validation helper
-  const canSubmit = Boolean(imageFile && description.trim() && location.trim());
+  const canSubmit = Boolean(
+    imageFile &&
+      category &&
+      description.trim() &&
+      locationConfirmed &&
+      isValidCoordPair(coords?.lat, coords?.lng) &&
+      !submitting,
+  );
 
   // submit report to AI service
   const handleSubmit = async () => {
+    if (!canSubmit || submitting) return;
     setSubmitError(null);
     setSubmitting(true);
 
@@ -222,6 +232,10 @@ export default function ReportIssue() {
                   <SetLocation
                     location={location}
                     onLocationChange={setLocation}
+                    coords={coords}
+                    onCoordsChange={setCoords}
+                    locationConfirmed={locationConfirmed}
+                    onLocationConfirmed={setLocationConfirmed}
                     onSubmit={handleSubmit}
                     submitting={submitting}
                     canSubmit={canSubmit}

@@ -21,7 +21,15 @@ import { ActivityTimeline } from "@/components/authority/ActivityTimeline";
 import { MapPlaceholder } from "@/components/authority/MapPlaceholder";
 import { AssignOfficerModal } from "@/components/authority/AssignOfficerModal";
 import { useAuthority } from "@/context/AuthorityContext";
-import { reportStatusOptions } from "@/data/authority/mockReports";
+import { useAuth } from "@/context/AuthContext";
+import {
+  ACTION_BTN,
+  REPORT_STATUS_FLOW,
+  allowedStatusOptions,
+  canTransitionStatus,
+  isTerminalReportStatus,
+  normalizeReportStatus,
+} from "@/lib/actionState";
 
 const selectClass =
   "w-full pl-4 pr-9 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 appearance-none focus:outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/15 shadow-sm transition-all cursor-pointer";
@@ -31,6 +39,8 @@ export default function AuthorityReportDetails() {
   const navigate = useNavigate();
   const { reports, officers, assignOfficer, updateReportStatus, reportsLoading } =
     useAuthority();
+  const { role } = useAuth();
+  const canAssign = role === "authority" || role === "admin";
 
   const report = reports.find((r) => r.id === id || r.reportId === id);
   const ai = report?.ai || {
@@ -48,6 +58,7 @@ export default function AuthorityReportDetails() {
   );
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [assigning, setAssigning] = useState(false);
 
   useEffect(() => {
     if (!report) return;
@@ -73,7 +84,26 @@ export default function AuthorityReportDetails() {
     );
   }
 
+  const currentStatus = normalizeReportStatus(report.status);
+  const selectedStatus = normalizeReportStatus(status);
+  const statusChoices = allowedStatusOptions(currentStatus, REPORT_STATUS_FLOW);
+  const alreadyAssigned = Boolean(report.assignedOfficer);
+  const canOpenAssign = canAssign && !alreadyAssigned && !assigning;
+  const officerReady =
+    selectedStatus === "Pending" || Boolean(assignedOfficer);
+  const canSave =
+    canAssign &&
+    !saving &&
+    !isTerminalReportStatus(currentStatus) &&
+    officerReady &&
+    (canTransitionStatus(currentStatus, selectedStatus, REPORT_STATUS_FLOW) ||
+      (!alreadyAssigned &&
+        assignedOfficer &&
+        assignedOfficer !== report.assignedOfficer));
+
   const handleAssign = async (officerName) => {
+    if (!canAssign || alreadyAssigned || assigning) return;
+    setAssigning(true);
     try {
       await assignOfficer(report.id, officerName);
       setAssignedOfficer(officerName);
@@ -82,10 +112,13 @@ export default function AuthorityReportDetails() {
       toast.success("Officer assigned successfully");
     } catch {
       toast.error("Could not assign the officer.");
+    } finally {
+      setAssigning(false);
     }
   };
 
   const handleSave = async () => {
+    if (!canSave) return;
     setSaving(true);
     try {
       await updateReportStatus(report.id, status, assignedOfficer);
@@ -245,6 +278,7 @@ export default function AuthorityReportDetails() {
                     <select
                       value={assignedOfficer}
                       onChange={(e) => setAssignedOfficer(e.target.value)}
+                      disabled={!canAssign || alreadyAssigned || assigning}
                       className={selectClass}
                     >
                       <option value="">No officer assigned</option>
@@ -258,8 +292,9 @@ export default function AuthorityReportDetails() {
                   </div>
                   <button
                     onClick={() => setAssignModalOpen(true)}
-                    title="Assign Officer"
-                    className="p-2.5 rounded-xl text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 transition-colors cursor-pointer shrink-0"
+                    title={alreadyAssigned ? "Officer already assigned" : "Assign Officer"}
+                    disabled={!canOpenAssign}
+                    className={`p-2.5 rounded-xl text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 transition-colors cursor-pointer shrink-0 ${ACTION_BTN}`}
                   >
                     <UserCheck className="h-4 w-4" />
                   </button>
@@ -277,7 +312,7 @@ export default function AuthorityReportDetails() {
                     onChange={(e) => setStatus(e.target.value)}
                     className={selectClass}
                   >
-                    {reportStatusOptions.map((s) => (
+                    {statusChoices.map((s) => (
                       <option key={s} value={s}>
                         {s}
                       </option>
@@ -289,8 +324,8 @@ export default function AuthorityReportDetails() {
 
               <button
                 onClick={handleSave}
-                disabled={saving}
-                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm shadow-indigo-600/20 transition-all active:scale-[0.98] disabled:opacity-60 cursor-pointer"
+                disabled={!canSave}
+                className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm shadow-indigo-600/20 transition-all active:scale-[0.98] cursor-pointer ${ACTION_BTN}`}
               >
                 <Save className="h-3.5 w-3.5" />
                 {saving ? "Saving..." : "Save Changes"}
@@ -346,6 +381,8 @@ export default function AuthorityReportDetails() {
         onConfirm={handleAssign}
         officers={officers}
         report={report}
+        assigning={assigning}
+        canAssign={canAssign}
       />
     </AuthorityLayout>
   );

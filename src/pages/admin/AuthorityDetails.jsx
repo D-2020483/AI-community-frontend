@@ -36,6 +36,7 @@ import { toast } from "react-hot-toast";
 import { apiRequest, getErrorMessage } from "@/lib/api";
 import { mapAuthorityFromApi, mapOfficerFromApi } from "@/lib/adminMappers";
 import { CreatedCredentialsModal } from "@/components/admin/CreatedCredentialsModal";
+import { ACTION_BTN, isValidEmail } from "@/lib/actionState";
 
 const districtCenters = [
   { name: "North District", lat: 4.8156, lng: 7.0498, population: 182000 },
@@ -114,12 +115,21 @@ export default function AuthorityDetails() {
     .map((d) => d.trim())
     .filter(Boolean);
 
+  const canCreateOfficer =
+    Boolean(form.firstName.trim()) &&
+    Boolean(form.lastName.trim()) &&
+    isValidEmail(form.email) &&
+    Boolean(authority?.id) &&
+    !busy;
+  const canSaveOfficer =
+    Boolean(editOfficer?.firstName?.trim()) &&
+    Boolean(editOfficer?.lastName?.trim()) &&
+    isValidEmail(editOfficer?.email) &&
+    !busy;
+
   const handleAddOfficer = async (e) => {
     e.preventDefault();
-    if (!form.firstName || !form.lastName || !form.email) {
-      toast.error("First name, last name, and email are required");
-      return;
-    }
+    if (!canCreateOfficer) return;
     const createdEmail = form.email.trim();
     const createdName = `${form.firstName} ${form.lastName}`.trim();
     setBusy(true);
@@ -187,7 +197,8 @@ export default function AuthorityDetails() {
 
   const handleSaveOfficer = async (e) => {
     e.preventDefault();
-    if (!editOfficer) return;
+    if (!editOfficer || !canSaveOfficer) return;
+    setBusy(true);
     try {
       const data = await apiRequest(`/admin/officers/${editOfficer.id}`, {
         method: "PATCH",
@@ -206,11 +217,14 @@ export default function AuthorityDetails() {
       setEditOfficer(null);
     } catch (error) {
       toast.error(getErrorMessage(error.data, error.message || "Failed to update officer"));
+    } finally {
+      setBusy(false);
     }
   };
 
   const handleToggleOfficer = async () => {
-    if (!deactivateOfficer) return;
+    if (!deactivateOfficer || busy) return;
+    setBusy(true);
     try {
       const data = await apiRequest(
         `/admin/officers/${deactivateOfficer.id}/status`,
@@ -224,11 +238,14 @@ export default function AuthorityDetails() {
       setDeactivateOfficer(null);
     } catch (error) {
       toast.error(getErrorMessage(error.data, error.message || "Failed to update status"));
+    } finally {
+      setBusy(false);
     }
   };
 
   const handleDeleteOfficer = async () => {
-    if (!deleteOfficer) return;
+    if (!deleteOfficer || busy) return;
+    setBusy(true);
     try {
       await apiRequest(`/admin/officers/${deleteOfficer.id}`, { method: "DELETE" });
       setOfficers((prev) => prev.filter((o) => o.id !== deleteOfficer.id));
@@ -237,11 +254,14 @@ export default function AuthorityDetails() {
       setDeleteOfficer(null);
     } catch (error) {
       toast.error(getErrorMessage(error.data, error.message || "Failed to delete officer"));
+    } finally {
+      setBusy(false);
     }
   };
 
   const handleResetPassword = async () => {
-    if (!resetOfficer) return;
+    if (!resetOfficer || busy) return;
+    setBusy(true);
     try {
       const data = await apiRequest(
         `/admin/officers/${resetOfficer.id}/reset-password`,
@@ -261,6 +281,8 @@ export default function AuthorityDetails() {
       toast.success(`Password reset. New credentials prepared for ${email}`);
     } catch (error) {
       toast.error(getErrorMessage(error.data, error.message));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -711,11 +733,11 @@ export default function AuthorityDetails() {
             </button>
             <button
               onClick={handleAddOfficer}
-              disabled={busy}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
+              disabled={!canCreateOfficer}
+              className={`inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition-all active:scale-[0.98] cursor-pointer ${ACTION_BTN}`}
             >
               <Key className="h-3.5 w-3.5" />{" "}
-              {busy ? "Creating..." : "Create & Send Credentials"}
+              {busy ? "Creating Officer..." : "Create Officer"}
             </button>
           </>
         }
@@ -853,9 +875,10 @@ export default function AuthorityDetails() {
             </button>
             <button
               onClick={handleSaveOfficer}
-              className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors cursor-pointer"
+              disabled={!canSaveOfficer}
+              className={`px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors cursor-pointer ${ACTION_BTN}`}
             >
-              Save Changes
+              {busy ? "Saving..." : "Save Changes"}
             </button>
           </>
         }
@@ -959,6 +982,7 @@ export default function AuthorityDetails() {
         tone={deactivateOfficer?.status === "Active" ? "danger" : "primary"}
         onConfirm={handleToggleOfficer}
         onCancel={() => setDeactivateOfficer(null)}
+        loading={busy}
       />
 
       {/* Delete Officer Dialog */}
@@ -970,6 +994,8 @@ export default function AuthorityDetails() {
         tone="danger"
         onConfirm={handleDeleteOfficer}
         onCancel={() => setDeleteOfficer(null)}
+        loading={busy}
+        loadingLabel="Deleting..."
       />
 
       {/* Reset Password Dialog */}
@@ -981,6 +1007,8 @@ export default function AuthorityDetails() {
         tone="primary"
         onConfirm={handleResetPassword}
         onCancel={() => setResetOfficer(null)}
+        loading={busy}
+        loadingLabel="Sending..."
       />
 
       <CreatedCredentialsModal

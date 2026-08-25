@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { apiRequest, getErrorMessage } from "@/lib/api";
 import { getRouteForRole, mapBackendRole } from "@/lib/auth";
+import { ACTION_BTN, isValidEmail } from "@/lib/actionState";
 
 const LOGIN_ROLES = ["citizen", "authority", "officer", "admin"];
 
@@ -84,8 +85,13 @@ export default function Login() {
     };
   }, [inviteFromLink, setRole]);
 
+  const canSubmit = Boolean(
+    email.trim() && password && isValidEmail(email) && !loading,
+  );
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!canSubmit) return;
     setLoading(true);
 
     try {
@@ -186,8 +192,8 @@ export default function Login() {
         <Button
           type="submit"
           full
-          disabled={loading}
-          className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl shadow-sm shadow-indigo-600/20 transition-all duration-200 hover:shadow-md hover:shadow-indigo-600/30 active:scale-[0.99] cursor-pointer disabled:opacity-60"
+          disabled={!canSubmit}
+          className={`w-full inline-flex items-center justify-center gap-2 py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl shadow-sm shadow-indigo-600/20 transition-all duration-200 hover:shadow-md hover:shadow-indigo-600/30 active:scale-[0.99] cursor-pointer ${ACTION_BTN}`}
         >
           {loading ? "Signing in..." : "Sign in"}
           <ArrowRight className="h-4 w-4 stroke-[2.5]" />

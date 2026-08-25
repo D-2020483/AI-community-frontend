@@ -17,6 +17,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { StatusBadge } from "@/components/ui/Badge";
 import { OfficerCard } from "@/components/authority/OfficerCard";
 import { useAuthority } from "@/context/AuthorityContext";
+import { ACTION_BTN } from "@/lib/actionState";
 
 const inputClass =
   "w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/15 shadow-sm transition-all";
@@ -75,6 +76,14 @@ export default function AuthorityOfficers() {
   const [editOfficer, setEditOfficer] = useState(null);
   const [viewOfficer, setViewOfficer] = useState(null);
   const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
+
+  const canCreateOfficer =
+    Boolean(form.name.trim()) && Boolean(form.department.trim()) && !saving;
+  const canSaveOfficer =
+    Boolean(editOfficer?.name?.trim()) &&
+    Boolean(editOfficer?.department?.trim()) &&
+    !saving;
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -91,10 +100,7 @@ export default function AuthorityOfficers() {
 
   const handleCreate = (e) => {
     e.preventDefault();
-    if (!form.name || !form.department) {
-      toast.error("Name and department are required");
-      return;
-    }
+    if (!canCreateOfficer) return;
     const newOfficer = {
       id: `${authority?.authorityType || "auth"}-${Date.now()}`,
       name: form.name,
@@ -112,7 +118,7 @@ export default function AuthorityOfficers() {
 
   const handleSave = (e) => {
     e.preventDefault();
-    if (!editOfficer) return;
+    if (!editOfficer || !canSaveOfficer) return;
     updateOfficer(editOfficer);
     toast.success("Officer updated successfully");
     setEditOfficer(null);
@@ -198,9 +204,10 @@ export default function AuthorityOfficers() {
             </button>
             <button
               onClick={handleCreate}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition-all active:scale-[0.98] cursor-pointer"
+              disabled={!canCreateOfficer}
+              className={`inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition-all active:scale-[0.98] cursor-pointer ${ACTION_BTN}`}
             >
-              <ShieldCheck className="h-3.5 w-3.5" /> Add Officer
+              <ShieldCheck className="h-3.5 w-3.5" /> Create Officer
             </button>
           </>
         }
@@ -278,7 +285,8 @@ export default function AuthorityOfficers() {
             </button>
             <button
               onClick={handleSave}
-              className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors cursor-pointer"
+              disabled={!canSaveOfficer}
+              className={`px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors cursor-pointer ${ACTION_BTN}`}
             >
               Save Changes
             </button>

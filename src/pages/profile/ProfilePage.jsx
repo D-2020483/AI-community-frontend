@@ -27,6 +27,7 @@ import {
   unreadNotificationCount,
 } from "@/lib/citizenNotifications";
 import { getErrorMessage } from "@/lib/api";
+import { ACTION_BTN, isValidPassword } from "@/lib/actionState";
 
 const activityConfig = {
   submitted: { icon: FilePlus2, cls: "bg-indigo-50 text-indigo-600" },
@@ -152,9 +153,26 @@ export default function ProfilePage() {
 
   const strength = getPasswordStrength(passwords.new);
   const joined = memberSince(user?.createdAt);
+  const original = formFromUser(user);
+  const profileDirty =
+    form.fullName !== original.fullName ||
+    form.phone !== original.phone ||
+    form.location !== original.location ||
+    form.district !== original.district;
+  const canSaveProfile =
+    editing &&
+    form.fullName.trim().length >= 2 &&
+    profileDirty &&
+    !saving;
+  const canSavePassword =
+    Boolean(passwords.current) &&
+    isValidPassword(passwords.new) &&
+    passwords.new === passwords.confirm &&
+    !savingPassword;
 
   const handleEdit = async (e) => {
     e.preventDefault();
+    if (!canSaveProfile) return;
     setSaving(true);
     try {
       await updateProfile({
@@ -174,12 +192,8 @@ export default function ProfilePage() {
 
   const handlePassword = async (e) => {
     e.preventDefault();
-    if (passwords.new !== passwords.confirm) {
-      toast.error("New passwords do not match.");
-      return;
-    }
-    if (passwords.new.length < 8) {
-      toast.error("Password must be at least 8 characters.");
+    if (!canSavePassword) {
+      toast.error("Enter your current password and a valid matching new password.");
       return;
     }
     setSavingPassword(true);
@@ -374,8 +388,8 @@ export default function ProfilePage() {
                 {editing && (
                   <button
                     type="submit"
-                    disabled={saving}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-sm shadow-indigo-600/20 transition-all hover:shadow-md active:scale-[0.98] cursor-pointer disabled:opacity-60"
+                    disabled={!canSaveProfile}
+                    className={`inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-sm shadow-indigo-600/20 transition-all hover:shadow-md active:scale-[0.98] cursor-pointer ${ACTION_BTN}`}
                   >
                     <Save className="h-3.5 w-3.5" />
                     {saving ? "Saving..." : "Save Changes"}
@@ -471,8 +485,8 @@ export default function ProfilePage() {
 
                 <button
                   type="submit"
-                  disabled={savingPassword}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl shadow-sm transition-all active:scale-[0.98] cursor-pointer disabled:opacity-60"
+                  disabled={!canSavePassword}
+                  className={`inline-flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl shadow-sm transition-all active:scale-[0.98] cursor-pointer ${ACTION_BTN}`}
                 >
                   <Key className="h-3.5 w-3.5" />
                   {savingPassword ? "Saving..." : "Update Password"}

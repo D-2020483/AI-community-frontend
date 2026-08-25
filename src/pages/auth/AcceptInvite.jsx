@@ -7,6 +7,7 @@ import { FormField } from "@/components/ui/form-field";
 import { Button } from "@/components/ui/button";
 import { apiRequest, getErrorMessage } from "@/lib/api";
 import { getRouteForRole, mapBackendRole } from "@/lib/auth";
+import { isValidPassword } from "@/lib/actionState";
 
 export default function AcceptInvite() {
   const navigate = useNavigate();
@@ -33,8 +34,16 @@ export default function AcceptInvite() {
       .finally(() => setLoading(false));
   }, [token]);
 
+  const canSubmit = Boolean(
+    token &&
+      isValidPassword(password) &&
+      password === confirmPassword &&
+      !submitting,
+  );
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!canSubmit) return;
     setSubmitting(true);
 
     try {
@@ -110,7 +119,7 @@ export default function AcceptInvite() {
           onChange={(e) => setConfirmPassword(e.target.value)}
           required
         />
-        <Button type="submit" full disabled={submitting}>
+        <Button type="submit" full disabled={!canSubmit}>
           {submitting ? "Saving…" : "Activate account"}
           {!submitting && <ArrowRight className="h-4 w-4 stroke-[2.5]" />}
         </Button>

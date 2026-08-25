@@ -6,6 +6,7 @@ import { OfficerLayout } from "@/layouts/officer/OfficerLayout";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useAuth } from "@/context/AuthContext";
 import { getErrorMessage } from "@/lib/api";
+import { ACTION_BTN, isValidPassword } from "@/lib/actionState";
 
 const inputClass =
   "w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/15 shadow-sm transition-all";
@@ -77,6 +78,13 @@ function WorkspaceSettings({ variant }) {
     confirmPassword: "",
   });
   const [savingPassword, setSavingPassword] = useState(false);
+  const [savingPrefs, setSavingPrefs] = useState(false);
+
+  const canSavePassword =
+    Boolean(passwords.currentPassword) &&
+    isValidPassword(passwords.newPassword) &&
+    passwords.newPassword === passwords.confirmPassword &&
+    !savingPassword;
 
   const orgLabel = useMemo(() => {
     if (role === "officer") {
@@ -86,11 +94,18 @@ function WorkspaceSettings({ variant }) {
   }, [role, user]);
 
   const savePrefs = () => {
-    localStorage.setItem(settingsKey(role), JSON.stringify(prefs));
-    toast.success("Notification settings saved");
+    if (savingPrefs) return;
+    setSavingPrefs(true);
+    try {
+      localStorage.setItem(settingsKey(role), JSON.stringify(prefs));
+      toast.success("Notification settings saved");
+    } finally {
+      setSavingPrefs(false);
+    }
   };
 
   const savePassword = async () => {
+    if (!canSavePassword) return;
     setSavingPassword(true);
     try {
       await changePassword(passwords);
@@ -162,9 +177,10 @@ function WorkspaceSettings({ variant }) {
             <button
               type="button"
               onClick={savePrefs}
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl cursor-pointer"
+              disabled={savingPrefs}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl cursor-pointer ${ACTION_BTN}`}
             >
-              <Save className="h-3.5 w-3.5" /> Save
+              <Save className="h-3.5 w-3.5" /> {savingPrefs ? "Saving..." : "Save"}
             </button>
           </div>
           <div className="p-6 divide-y divide-slate-50">
@@ -210,8 +226,8 @@ function WorkspaceSettings({ variant }) {
           <button
             type="button"
             onClick={savePassword}
-            disabled={savingPassword}
-            className="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl cursor-pointer disabled:opacity-60"
+            disabled={!canSavePassword}
+            className={`inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl cursor-pointer ${ACTION_BTN}`}
           >
             <Save className="h-3.5 w-3.5" />
             {savingPassword ? "Saving..." : "Update password"}

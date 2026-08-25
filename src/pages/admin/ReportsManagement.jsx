@@ -36,6 +36,7 @@ import { toast } from "react-hot-toast";
 import { apiRequest, getErrorMessage } from "@/lib/api";
 import { mapAdminReportFromApi } from "@/lib/adminMappers";
 import { markReportsSeen, REPORT_SEEN_KEYS } from "@/lib/reportBadges";
+import { ACTION_BTN } from "@/lib/actionState";
 
 const PAGE_SIZE = 7;
 
@@ -191,6 +192,20 @@ export default function ReportsManagement() {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
+  const assignmentDirty = Boolean(
+    viewReport &&
+      reports.some((report) => {
+        if (report.id !== viewReport.id) return false;
+        return (
+          report.authority !== viewReport.authority ||
+          report.officer !== viewReport.officer ||
+          report.status !== viewReport.status ||
+          report.priority !== viewReport.priority ||
+          report.category !== viewReport.category
+        );
+      }),
+  );
+
   const handleDelete = async () => {
     if (!deleteReport || busy) return;
     setBusy(true);
@@ -210,7 +225,7 @@ export default function ReportsManagement() {
   };
 
   const handleSaveAssignment = async () => {
-    if (!viewReport || assigning) return;
+    if (!viewReport || assigning || !assignmentDirty) return;
     setAssigning(true);
     try {
       const data = await apiRequest(`/admin/reports/${viewReport.id}`, {
@@ -773,10 +788,10 @@ export default function ReportsManagement() {
               </div>
               <button
                 onClick={handleSaveAssignment}
-                disabled={assigning}
-                className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+                disabled={assigning || !assignmentDirty}
+                className={`mt-3 inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition-all active:scale-[0.98] cursor-pointer ${ACTION_BTN}`}
               >
-                {assigning ? "Saving..." : "Save Assignment"}
+                {assigning ? "Assigning..." : "Save Assignment"}
               </button>
             </div>
 
@@ -908,6 +923,7 @@ export default function ReportsManagement() {
         onConfirm={handleDelete}
         onCancel={() => setDeleteReport(null)}
         loading={busy}
+        loadingLabel="Deleting..."
       />
     </AdminLayout>
   );

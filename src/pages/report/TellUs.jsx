@@ -121,7 +121,7 @@ export function TellUs({
 
       <div className="space-y-1.5">
         <label className="text-xs font-bold text-slate-700">
-          Issue category
+          Issue type *
         </label>
         <div className="relative">
           <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none text-slate-600">
@@ -132,7 +132,7 @@ export function TellUs({
             onChange={(e) => onCategoryChange(e.target.value)}
             className="w-full pl-10 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 appearance-none focus:outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/15 shadow-sm transition-all cursor-pointer"
           >
-            <option value="">Not sure / let AI decide</option>
+            <option value="">Select issue type</option>
             {categoryOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>
                 {opt.label}

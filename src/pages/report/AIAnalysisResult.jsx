@@ -18,6 +18,7 @@ import {
 import { reportAuthorities } from "@/data/reportsData";
 import { CATEGORY_OPTIONS } from "@/data/issueCategories";
 import { labelForCategory } from "@/lib/categoryService";
+import { ACTION_BTN } from "@/lib/actionState";
 
 const PRIORITY_STYLES = {
   HIGH: "bg-rose-50 text-rose-700 border-rose-200/60",
@@ -34,6 +35,8 @@ export function AIAnalysisResult({
   categoryOptions = CATEGORY_OPTIONS,
 }) {
   const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [tracking, setTracking] = useState(false);
 
   const [category, setCategory] = useState(aiResult.issue_category);
 
@@ -41,10 +44,22 @@ export function AIAnalysisResult({
     aiResult.assigned_authority?.name || ""
   );
 
-  const handleSave = () => {
-    setEditing(false);
+  const originalCategory = aiResult.issue_category;
+  const originalAuthority = aiResult.assigned_authority?.name || "";
+  const hasChanges =
+    category !== originalCategory || authority !== originalAuthority;
+  const canSaveEdits =
+    hasChanges && Boolean(category) && Boolean(authority) && !saving;
 
-    toast.success("Report details updated successfully.");
+  const handleSave = async () => {
+    if (!canSaveEdits) return;
+    setSaving(true);
+    try {
+      toast.success("Report details updated successfully.");
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCancel = () => {
@@ -290,11 +305,12 @@ export function AIAnalysisResult({
                 {/* Save */}
                 <button
                   onClick={handleSave}
-                  className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer active:scale-[0.99]"
+                  disabled={!canSaveEdits}
+                  className={`flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer active:scale-[0.99] ${ACTION_BTN}`}
                 >
                   <Check className="h-3.5 w-3.5" />
 
-                  <span>Save changes</span>
+                  <span>{saving ? "Saving..." : "Save Changes"}</span>
                 </button>
 
                 {/* Cancel */}
@@ -321,15 +337,22 @@ export function AIAnalysisResult({
           </div>
           {/* TRACK REPORT */}
           <button
-            onClick={() =>
-              onTrackReport({
-                category,
-                authority,
-              })
-            }
-            className="w-full mt-6 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+            onClick={async () => {
+              if (tracking) return;
+              setTracking(true);
+              try {
+                await onTrackReport({
+                  category,
+                  authority,
+                });
+              } finally {
+                setTracking(false);
+              }
+            }}
+            disabled={tracking}
+            className={`w-full mt-6 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] ${ACTION_BTN}`}
           >
-            <span>Track this report</span>
+            <span>{tracking ? "Opening tracker..." : "Track this report"}</span>
 
             <ArrowRight className="h-4 w-4" />
           </button>

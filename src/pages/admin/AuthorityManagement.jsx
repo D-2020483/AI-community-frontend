@@ -29,6 +29,7 @@ import { apiRequest, getErrorMessage } from "@/lib/api";
 import { mapAuthorityFromApi } from "@/lib/adminMappers";
 import { CreatedCredentialsModal } from "@/components/admin/CreatedCredentialsModal";
 import { toast } from "react-hot-toast";
+import { ACTION_BTN, isValidEmail } from "@/lib/actionState";
 
 function AuthorityLogo({ name, logo, status }) {
   const initials = name
@@ -121,13 +122,16 @@ export default function AuthorityManagement() {
     });
   }, [authorities, query, filterStatus]);
 
+  const canCreateAuthority =
+    Boolean(form.name.trim()) && isValidEmail(form.email) && !busy;
+  const canSaveAuthority =
+    Boolean(editAuth?.name?.trim()) &&
+    isValidEmail(editAuth?.email) &&
+    !busy;
+
   const handleCreate = async (e) => {
     e.preventDefault();
-    if (busy) return;
-    if (!form.name || !form.email) {
-      toast.error("Authority name and email are required");
-      return;
-    }
+    if (!canCreateAuthority) return;
 
     const createdEmail = form.email.trim();
     setBusy(true);
@@ -201,11 +205,7 @@ export default function AuthorityManagement() {
 
   const handleSaveEdit = async (e) => {
     e.preventDefault();
-    if (!editAuth || busy) return;
-    if (!editAuth.name?.trim() || !editAuth.email?.trim()) {
-      toast.error("Authority name and email are required");
-      return;
-    }
+    if (!editAuth || !canSaveAuthority) return;
     setBusy(true);
     try {
       const data = await apiRequest(`/admin/authorities/${editAuth.id}`, {
@@ -460,10 +460,10 @@ export default function AuthorityManagement() {
             </button>
             <button
               onClick={handleCreate}
-              disabled={busy}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
+              disabled={!canCreateAuthority}
+              className={`inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition-all active:scale-[0.98] cursor-pointer ${ACTION_BTN}`}
             >
-              <ShieldCheck className="h-3.5 w-3.5" /> {busy ? "Creating..." : "Create & Email Login"}
+              <ShieldCheck className="h-3.5 w-3.5" /> {busy ? "Creating..." : "Create Authority"}
             </button>
           </>
         }
@@ -618,8 +618,8 @@ export default function AuthorityManagement() {
             </button>
             <button
               onClick={handleSaveEdit}
-              disabled={busy}
-              className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+              disabled={!canSaveAuthority}
+              className={`px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors cursor-pointer ${ACTION_BTN}`}
             >
               {busy ? "Saving..." : "Save Changes"}
             </button>
@@ -736,6 +736,7 @@ export default function AuthorityManagement() {
         onConfirm={handleDelete}
         onCancel={() => setDeleteAuth(null)}
         loading={busy}
+        loadingLabel="Deleting..."
       />
       <CreatedCredentialsModal
         credentials={createdCredentials}

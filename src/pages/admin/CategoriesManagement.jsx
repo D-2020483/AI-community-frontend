@@ -30,6 +30,7 @@ import { StatusBadge } from "@/components/ui/Badge";
 import { apiRequest, getErrorMessage } from "@/lib/api";
 import { mapCategoryFromApi } from "@/lib/adminMappers";
 import { toast } from "react-hot-toast";
+import { ACTION_BTN } from "@/lib/actionState";
 
 const iconMap = {
   TrafficCone,
@@ -105,12 +106,12 @@ export default function CategoriesManagement() {
 
   const totalReports = categories.reduce((s, c) => s + c.reports, 0);
 
+  const canCreateCategory = Boolean(form.name.trim()) && !busy;
+  const canSaveCategory = Boolean(editCat?.name?.trim()) && !busy;
+
   const handleCreate = async (e) => {
     e.preventDefault();
-    if (!form.name) {
-      toast.error("Category name is required");
-      return;
-    }
+    if (!canCreateCategory) return;
     setBusy(true);
     try {
       const data = await apiRequest("/admin/categories", {
@@ -424,9 +425,10 @@ export default function CategoriesManagement() {
             </button>
             <button
               onClick={handleCreate}
-              className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors cursor-pointer"
+              disabled={!canCreateCategory}
+              className={`px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors cursor-pointer ${ACTION_BTN}`}
             >
-              Create Category
+              {busy ? "Creating..." : "Create Category"}
             </button>
           </>
         }
@@ -486,9 +488,10 @@ export default function CategoriesManagement() {
             </button>
             <button
               onClick={handleSave}
-              className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors cursor-pointer"
+              disabled={!canSaveCategory}
+              className={`px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors cursor-pointer ${ACTION_BTN}`}
             >
-              Save Changes
+              {busy ? "Saving..." : "Save Changes"}
             </button>
           </>
         }
@@ -569,6 +572,7 @@ export default function CategoriesManagement() {
         onConfirm={handleDelete}
         onCancel={() => setDeleteCat(null)}
         loading={busy}
+        loadingLabel="Deleting..."
       />
     </AdminLayout>
   );

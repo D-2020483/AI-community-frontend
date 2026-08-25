@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { getErrorMessage } from "@/lib/api";
 import { getRouteForRole } from "@/lib/auth";
+import { isValidPassword } from "@/lib/actionState";
 
 export default function ChangePassword() {
   const navigate = useNavigate();
@@ -22,8 +23,16 @@ export default function ChangePassword() {
     return null;
   }
 
+  const canSubmit = Boolean(
+    currentPassword &&
+      isValidPassword(newPassword) &&
+      newPassword === confirmPassword &&
+      !submitting,
+  );
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!canSubmit) return;
     setSubmitting(true);
 
     try {
@@ -80,7 +89,7 @@ export default function ChangePassword() {
           onChange={(e) => setConfirmPassword(e.target.value)}
           required
         />
-        <Button type="submit" full disabled={submitting}>
+        <Button type="submit" full disabled={!canSubmit}>
           {submitting ? "Saving…" : "Update password"}
           {!submitting && <ArrowRight className="h-4 w-4 stroke-[2.5]" />}
         </Button>

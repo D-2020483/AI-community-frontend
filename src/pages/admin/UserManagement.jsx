@@ -31,6 +31,7 @@ import { StatusBadge } from "@/components/ui/Badge";
 import { apiRequest, getErrorMessage } from "@/lib/api";
 import { mapCitizenFromApi } from "@/lib/adminMappers";
 import { toast } from "react-hot-toast";
+import { ACTION_BTN, isValidEmail } from "@/lib/actionState";
 
 const PAGE_SIZE = 6;
 
@@ -313,13 +314,14 @@ export default function UserManagement() {
     setEditUser({ ...user });
   };
 
+  const canSaveUser =
+    Boolean(editUser?.fullName?.trim()) &&
+    isValidEmail(editUser?.email) &&
+    !busy;
+
   const handleSaveEdit = async (e) => {
     e.preventDefault();
-    if (!editUser || busy) return;
-    if (!editUser.fullName?.trim() || !editUser.email?.trim()) {
-      toast.error("Full name and email are required");
-      return;
-    }
+    if (!canSaveUser) return;
     setBusy(true);
     try {
       const data = await apiRequest(`/admin/users/${editUser.id}`, {
@@ -801,8 +803,8 @@ export default function UserManagement() {
             <button
               type="submit"
               form="edit-user-form"
-              disabled={busy}
-              className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+              disabled={!canSaveUser}
+              className={`px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors cursor-pointer ${ACTION_BTN}`}
             >
               {busy ? "Saving..." : "Save Changes"}
             </button>
@@ -918,6 +920,7 @@ export default function UserManagement() {
         onConfirm={handleDelete}
         onCancel={() => setDeleteUser(null)}
         loading={busy}
+        loadingLabel="Deleting..."
       />
     </AdminLayout>
   );

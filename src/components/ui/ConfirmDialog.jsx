@@ -9,16 +9,23 @@ export function ConfirmDialog({
   cancelLabel = "Cancel",
   tone = "danger",
   loading = false,
+  loadingLabel,
   onConfirm,
   onCancel,
 }) {
   useEffect(() => {
     const handleKey = (e) => {
-      if (e.key === "Escape") onCancel();
+      if (e.key === "Escape" && !loading) onCancel();
     };
     if (open) document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
-  }, [open, onCancel]);
+  }, [open, onCancel, loading]);
+
+  const busyLabel =
+    loadingLabel ||
+    (String(confirmLabel).toLowerCase().includes("delete")
+      ? "Deleting..."
+      : "Processing...");
 
   if (!open) return null;
 
@@ -35,12 +42,13 @@ export function ConfirmDialog({
     >
       <div
         className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-        onClick={onCancel}
+        onClick={loading ? undefined : onCancel}
       />
       <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 animate-scale-in">
         <button
           onClick={onCancel}
-          className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
+          disabled={loading}
+          className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <X className="h-4 w-4" />
         </button>
@@ -68,16 +76,20 @@ export function ConfirmDialog({
         <div className="flex items-center justify-end gap-2 mt-6">
           <button
             onClick={onCancel}
-            className="px-4 py-2 text-xs font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer"
+            disabled={loading}
+            className="px-4 py-2 text-xs font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {cancelLabel}
           </button>
           <button
-            onClick={onConfirm}
+            onClick={() => {
+              if (loading) return;
+              onConfirm();
+            }}
             disabled={loading}
-            className={`px-4 py-2 text-xs font-bold rounded-xl shadow-sm transition-all hover:shadow-md active:scale-[0.98] disabled:opacity-50 cursor-pointer ${confirmCls}`}
+            className={`px-4 py-2 text-xs font-bold rounded-xl shadow-sm transition-all hover:shadow-md active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer ${confirmCls}`}
           >
-            {loading ? "Processing..." : confirmLabel}
+            {loading ? busyLabel : confirmLabel}
           </button>
         </div>
       </div>

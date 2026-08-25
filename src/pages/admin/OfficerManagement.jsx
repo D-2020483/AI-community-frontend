@@ -26,6 +26,7 @@ import { apiRequest, getErrorMessage } from "@/lib/api";
 import { mapAuthorityOption, mapOfficerFromApi } from "@/lib/adminMappers";
 import { toast } from "react-hot-toast";
 import { CreatedCredentialsModal } from "@/components/admin/CreatedCredentialsModal";
+import { ACTION_BTN, isValidEmail } from "@/lib/actionState";
 
 const PAGE_SIZE = 6;
 
@@ -111,14 +112,6 @@ export default function OfficerManagement() {
         const options = authoritiesRes.data.authorities.map(mapAuthorityOption);
         setAuthorityOptions(options);
         setOfficers(officersRes.data.officers.map(mapOfficerFromApi));
-
-        if (options[0]) {
-          setForm((prev) => ({
-            ...prev,
-            authority: options[0].name,
-            authorityId: options[0].id,
-          }));
-        }
       } catch (error) {
         if (!cancelled) {
           toast.error(getErrorMessage(error.data, "Failed to load officers"));
@@ -168,16 +161,21 @@ export default function OfficerManagement() {
     setCurrentPage(1);
   }, [query, filterAuthority, filterStatus]);
 
+  const canCreateOfficer =
+    Boolean(form.firstName.trim()) &&
+    Boolean(form.lastName.trim()) &&
+    isValidEmail(form.email) &&
+    Boolean(form.authorityId) &&
+    !busy;
+  const canSaveOfficer =
+    Boolean(editOfficer?.firstName?.trim()) &&
+    Boolean(editOfficer?.lastName?.trim()) &&
+    isValidEmail(editOfficer?.email) &&
+    !busy;
+
   const handleCreate = async (e) => {
     e.preventDefault();
-    if (!form.firstName || !form.lastName || !form.email) {
-      toast.error("First name, last name, and email are required");
-      return;
-    }
-    if (!form.authorityId) {
-      toast.error("Select an authority before creating an officer");
-      return;
-    }
+    if (!canCreateOfficer) return;
 
     const createdEmail = form.email.trim();
     const createdName = `${form.firstName} ${form.lastName}`.trim();
@@ -208,8 +206,8 @@ export default function OfficerManagement() {
         phone: "",
         position: "",
         department: "",
-        authority: authorityOptions[0]?.name || "",
-        authorityId: authorityOptions[0]?.id || "",
+        authority: "",
+        authorityId: "",
         photo: null,
       });
 
@@ -251,7 +249,7 @@ export default function OfficerManagement() {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if (!editOfficer || busy) return;
+    if (!editOfficer || !canSaveOfficer) return;
     setBusy(true);
     try {
       const data = await apiRequest(`/admin/officers/${editOfficer.id}`, {
@@ -320,8 +318,8 @@ export default function OfficerManagement() {
   };
 
   const handleReset = async () => {
-    if (!resetOfficer) return;
-
+    if (!resetOfficer || busy) return;
+    setBusy(true);
     try {
       const data = await apiRequest(
         `/admin/officers/${resetOfficer.id}/reset-password`,
@@ -341,6 +339,8 @@ export default function OfficerManagement() {
       toast.success(`Password reset. New credentials prepared for ${email}`);
     } catch (error) {
       toast.error(getErrorMessage(error.data, error.message));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -593,11 +593,11 @@ export default function OfficerManagement() {
             </button>
             <button
               onClick={handleCreate}
-              disabled={busy}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
+              disabled={!canCreateOfficer}
+              className={`inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm transition-all active:scale-[0.98] cursor-pointer ${ACTION_BTN}`}
             >
               <ShieldCheck className="h-3.5 w-3.5" />{" "}
-              {busy ? "Creating..." : "Create & Send Credentials"}
+              {busy ? "Sending Invitation..." : "Create Officer"}
             </button>
           </>
         }
@@ -669,7 +669,7 @@ export default function OfficerManagement() {
               />
             </div>
             <div className="sm:col-span-2">
-              <label className={labelClass}>Assign Authority</label>
+              <label className={labelClass}>Assign Authority *</label>
               <div className="relative">
                 <select
                   className={inputClass + " appearance-none"}
@@ -685,6 +685,7 @@ export default function OfficerManagement() {
                     });
                   }}
                 >
+                  <option value="">Select an authority</option>
                   {authorityOptions.map((a) => (
                     <option key={a.id} value={a.name}>
                       {a.name}
@@ -751,8 +752,8 @@ export default function OfficerManagement() {
             </button>
             <button
               onClick={handleSave}
-              disabled={busy}
-              className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+              disabled={!canSaveOfficer}
+              className={`px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors cursor-pointer ${ACTION_BTN}`}
             >
               {busy ? "Saving..." : "Save Changes"}
             </button>
@@ -875,6 +876,7 @@ export default function OfficerManagement() {
         onConfirm={handleDelete}
         onCancel={() => setDeleteOfficer(null)}
         loading={busy}
+        loadingLabel="Deleting..."
       />
 
       {/* Reset Password Dialog */}
@@ -886,6 +888,8 @@ export default function OfficerManagement() {
         tone="primary"
         onConfirm={handleReset}
         onCancel={() => setResetOfficer(null)}
+        loading={busy}
+        loadingLabel="Sending..."
       />
 
       <CreatedCredentialsModal

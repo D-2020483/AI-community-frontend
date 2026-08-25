@@ -18,8 +18,19 @@ import { ActionCard } from "@/components/officer/ActionCard";
 import { MapPlaceholder } from "@/components/authority/MapPlaceholder";
 import { ActivityTimeline } from "@/components/authority/ActivityTimeline";
 import { useOfficer } from "@/context/OfficerContext";
-import { officerTaskStatusOptions } from "@/data/officer/mockOfficerTasks";
+import { useAuth } from "@/context/AuthContext";
 import { getErrorMessage } from "@/lib/api";
+import {
+  ACTION_BTN,
+  OFFICER_STATUS_FLOW,
+  allowedStatusOptions,
+  canTransitionStatus,
+  isTerminalOfficerStatus,
+  isValidCoordPair,
+  navigationUrl,
+  normalizeOfficerStatus,
+  parseCoordinates,
+} from "@/lib/actionState";
 
 const priorityStyles = {
   High: "bg-rose-50 text-rose-600 border-rose-200",
@@ -40,6 +51,8 @@ export default function OfficerTaskDetails() {
     updateTaskStatus,
     addTaskUpdate,
   } = useOfficer();
+  const { role } = useAuth();
+  const canManageTask = role === "officer";
 
   const task = tasks.find((t) => t.id === id || t.reportId === id);
 
@@ -47,6 +60,9 @@ export default function OfficerTaskDetails() {
   const [updateText, setUpdateText] = useState("");
   const [fileName, setFileName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [accepting, setAccepting] = useState(false);
+  const [postingUpdate, setPostingUpdate] = useState(false);
+  const [resolving, setResolving] = useState(false);
 
   useEffect(() => {
     if (task?.status) setStatus(task.status);
@@ -79,18 +95,51 @@ export default function OfficerTaskDetails() {
   }
 
   const priorityCls = priorityStyles[task.priority] || priorityStyles.Low;
+  const currentStatus = normalizeOfficerStatus(task.status);
+  const selectedStatus = normalizeOfficerStatus(status);
+  const statusChoices = allowedStatusOptions(
+    currentStatus,
+    OFFICER_STATUS_FLOW,
+  );
+  const incidentCoords = parseCoordinates(task.location, task.lat, task.lng);
+  const canNavigate = isValidCoordPair(incidentCoords?.lat, incidentCoords?.lng);
+  const alreadyAccepted =
+    currentStatus === "Accepted" ||
+    currentStatus === "In Progress" ||
+    currentStatus === "Completed";
+  const canAccept = canManageTask && !alreadyAccepted && !accepting;
+  const canSaveStatus =
+    canManageTask &&
+    !saving &&
+    !isTerminalOfficerStatus(currentStatus) &&
+    canTransitionStatus(currentStatus, selectedStatus, OFFICER_STATUS_FLOW);
+  const canPostUpdate =
+    canManageTask &&
+    (updateText.trim() || fileName) &&
+    !postingUpdate &&
+    !isTerminalOfficerStatus(currentStatus);
+  const canResolve =
+    canManageTask &&
+    !resolving &&
+    currentStatus === "In Progress" &&
+    Boolean(updateText.trim());
 
   const handleAccept = async () => {
+    if (!canAccept) return;
+    setAccepting(true);
     try {
       await acceptTask(task.id);
       setStatus("Accepted");
       toast.success("Task accepted. The authority and citizen timeline were updated.");
     } catch (error) {
       toast.error(getErrorMessage(error.data, "Could not accept this task."));
+    } finally {
+      setAccepting(false);
     }
   };
 
   const handleSave = async () => {
+    if (!canSaveStatus) return;
     setSaving(true);
     try {
       await updateTaskStatus(task.id, status);
@@ -111,13 +160,11 @@ export default function OfficerTaskDetails() {
   };
 
   const handleSubmitUpdate = async () => {
+    if (!canPostUpdate) return;
     const note = [updateText.trim(), fileName ? `Photo attached: ${fileName}` : ""]
       .filter(Boolean)
       .join(" ");
-    if (!note) {
-      toast.error("Add a comment or attach a photo first");
-      return;
-    }
+    setPostingUpdate(true);
     try {
       await addTaskUpdate(task.id, note);
       setUpdateText("");
@@ -125,6 +172,25 @@ export default function OfficerTaskDetails() {
       toast.success("Update posted to the authority and citizen timeline.");
     } catch (error) {
       toast.error(getErrorMessage(error.data, "Could not submit the update."));
+    } finally {
+      setPostingUpdate(false);
+    }
+  };
+
+  const handleResolve = async () => {
+    if (!canResolve) return;
+    setResolving(true);
+    try {
+      const note = updateText.trim();
+      if (note) await addTaskUpdate(task.id, note);
+      await updateTaskStatus(task.id, "Completed");
+      setStatus("Completed");
+      setUpdateText("");
+      toast.success("Report marked as resolved.");
+    } catch (error) {
+      toast.error(getErrorMessage(error.data, "Could not resolve this report."));
+    } finally {
+      setResolving(false);
     }
   };
 
@@ -212,21 +278,34 @@ export default function OfficerTaskDetails() {
             icon={UserCheck}
           >
             <div className="flex flex-wrap gap-3">
+              {canManageTask && (
               <button
                 onClick={handleAccept}
-                disabled={
-                  task.status === "Accepted" ||
-                  task.status === "In Progress" ||
-                  task.status === "Completed"
-                }
-                className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm shadow-indigo-600/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                disabled={!canAccept}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm shadow-indigo-600/20 transition-all active:scale-[0.98] cursor-pointer ${ACTION_BTN}`}
               >
                 <CheckCircle2 className="h-3.5 w-3.5" />
-                {task.status === "Accepted" ||
-                task.status === "In Progress" ||
-                task.status === "Completed"
-                  ? "Accepted"
-                  : "Accept task"}
+                {accepting
+                  ? "Accepting..."
+                  : alreadyAccepted
+                    ? "Accepted"
+                    : "Accept task"}
+              </button>
+              )}
+              <button
+                onClick={() => {
+                  if (!canNavigate) return;
+                  window.open(
+                    navigationUrl(incidentCoords.lat, incidentCoords.lng),
+                    "_blank",
+                    "noopener,noreferrer",
+                  );
+                }}
+                disabled={!canNavigate}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl shadow-sm transition-all active:scale-[0.98] cursor-pointer ${ACTION_BTN}`}
+              >
+                <MapPin className="h-3.5 w-3.5" />
+                Navigate to Incident
               </button>
               <button
                 onClick={() => navigate("/officer/updates")}
@@ -273,9 +352,11 @@ export default function OfficerTaskDetails() {
 
               <button
                 onClick={handleSubmitUpdate}
-                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm shadow-indigo-600/20 transition-all active:scale-[0.98] cursor-pointer"
+                disabled={!canPostUpdate}
+                className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm shadow-indigo-600/20 transition-all active:scale-[0.98] cursor-pointer ${ACTION_BTN}`}
               >
-                <Send className="h-3.5 w-3.5" /> Submit update
+                <Send className="h-3.5 w-3.5" />
+                {postingUpdate ? "Submitting..." : "Submit update"}
               </button>
             </div>
           </ActionCard>
@@ -296,7 +377,7 @@ export default function OfficerTaskDetails() {
                     onChange={(e) => setStatus(e.target.value)}
                     className={selectClass}
                   >
-                    {officerTaskStatusOptions.map((s) => (
+                    {statusChoices.map((s) => (
                       <option key={s} value={s}>
                         {s}
                       </option>
@@ -308,11 +389,24 @@ export default function OfficerTaskDetails() {
 
               <button
                 onClick={handleSave}
-                disabled={saving}
-                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm shadow-emerald-600/20 transition-all active:scale-[0.98] disabled:opacity-60 cursor-pointer"
+                disabled={!canSaveStatus}
+                className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm shadow-emerald-600/20 transition-all active:scale-[0.98] cursor-pointer ${ACTION_BTN}`}
               >
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 {saving ? "Saving..." : "Save Changes"}
+              </button>
+
+              <button
+                onClick={handleResolve}
+                disabled={!canResolve}
+                className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl shadow-sm transition-all active:scale-[0.98] cursor-pointer ${ACTION_BTN}`}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                {resolving
+                  ? "Resolving..."
+                  : currentStatus === "Completed"
+                    ? "Resolved"
+                    : "Mark as Resolved"}
               </button>
 
               {task.status === "Completed" && (
