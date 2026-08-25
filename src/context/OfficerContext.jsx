@@ -17,8 +17,6 @@ const STORAGE_KEY = "civiclink_officer";
 
 const OfficerContext = createContext({
   officer: null,
-  loginOfficer: () => {},
-  logoutOfficer: () => {},
   tasks: [],
   tasksLoading: false,
   tasksError: null,
@@ -44,7 +42,7 @@ function sessionFromUser(user) {
 }
 
 export function OfficerProvider({ children }) {
-  const { user, role, isAuthenticated, logout } = useAuth();
+  const { user, role, isAuthenticated } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [tasksError, setTasksError] = useState(null);
@@ -88,21 +86,6 @@ export function OfficerProvider({ children }) {
     loadTasks();
   }, [loadTasks]);
 
-  const loginOfficer = () => ({
-    success: false,
-    message: "Use the main login page to sign in as an officer.",
-  });
-
-  const logoutOfficer = async () => {
-    setTasks([]);
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      /* ignore storage errors */
-    }
-    await logout();
-  };
-
   const persistTask = async (taskId, payload) => {
     try {
       const updated = await updateOfficerTask(taskId, payload);
@@ -144,8 +127,6 @@ export function OfficerProvider({ children }) {
 
   const value = {
     officer,
-    loginOfficer,
-    logoutOfficer,
     tasks,
     tasksLoading,
     tasksError,

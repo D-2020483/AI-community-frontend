@@ -50,10 +50,8 @@ export function CreatedCredentialsModal({
       {credentials && (
         <div className="space-y-3 text-sm">
           <p className="text-xs text-slate-500">
-            {credentials.name} opens this link once. The {workspaceLabel} login
-            shows their email; they type the password and enter the dashboard.
-            Opening the link again will not fill the email — they sign in with
-            email and password.
+            {credentials.name} opens this one-time invitation link, sets a
+            password, then signs in to the {workspaceLabel} workspace.
           </p>
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
             <div>

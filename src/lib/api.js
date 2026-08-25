@@ -1,5 +1,6 @@
-const API_BASE =
-  import.meta.env.VITE_API_URL || "https://civic-link-backend.onrender.com/api";
+import { getApiBase } from "./env.js";
+
+const API_BASE = getApiBase();
 
 export const TOKEN_KEY = "civiclink_token";
 export const REFRESH_TOKEN_KEY = "civiclink_refresh_token";
@@ -161,7 +162,12 @@ async function refreshAccessToken() {
     refreshPromise = (async () => {
       const response = await fetch(`${API_BASE}/auth/refresh`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(typeof window !== "undefined" && window.location?.origin
+            ? { "X-App-Origin": window.location.origin }
+            : {}),
+        },
         body: JSON.stringify({ refresh_token: refreshToken }),
       });
 
@@ -211,6 +217,10 @@ export async function apiRequest(path, options = {}, retry = true) {
 
   if (token && !headers.Authorization) {
     headers.Authorization = `Bearer ${token}`;
+  }
+
+  if (typeof window !== "undefined" && window.location?.origin) {
+    headers["X-App-Origin"] = window.location.origin;
   }
 
   const response = await fetch(`${API_BASE}${path}`, {

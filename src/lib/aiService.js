@@ -1,8 +1,6 @@
-// Base URL of the FastAPI ai-service (main.py).
-// Override with VITE_AI_SERVICE_URL for local uvicorn (http://localhost:8001).
-const AI_SERVICE_URL =
-  import.meta.env.VITE_AI_SERVICE_URL ||
-  "https://civic-link-ai-agent.onrender.com";
+import { getAiServiceUrl } from "./env.js";
+
+const AI_SERVICE_URL = getAiServiceUrl();
 
 /**
  * Reads a File/Blob as a base64 data URL

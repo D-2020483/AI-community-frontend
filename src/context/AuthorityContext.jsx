@@ -20,8 +20,6 @@ const STORAGE_KEY = "civiclink_authority";
 
 const AuthorityContext = createContext({
   authority: null,
-  loginAuthority: () => {},
-  logoutAuthority: () => {},
   reports: [],
   reportsLoading: false,
   reportsError: null,
@@ -109,20 +107,6 @@ export function AuthorityProvider({ children }) {
     loadReports();
   }, [loadReports]);
 
-  const loginAuthority = () => ({
-    success: false,
-    message: "Use the main login page to sign in as an authority.",
-  });
-
-  const logoutAuthority = () => {
-    setReports([]);
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      /* ignore storage errors */
-    }
-  };
-
   const persistResolution = async (reportId, payload) => {
     try {
       const updated = await updateAssignedReport(reportId, payload);
@@ -190,8 +174,6 @@ export function AuthorityProvider({ children }) {
 
   const value = {
     authority,
-    loginAuthority,
-    logoutAuthority,
     reports,
     reportsLoading,
     reportsError,

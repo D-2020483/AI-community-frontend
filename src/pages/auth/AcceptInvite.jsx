@@ -44,7 +44,8 @@ export default function AcceptInvite() {
       });
 
       toast.success(data.message || "Invitation accepted!");
-      navigate("/login");
+      const nextRole = mapBackendRole(invite.role);
+      navigate(nextRole && nextRole !== "citizen" ? `/login?role=${nextRole}` : "/login");
     } catch (error) {
       toast.error(getErrorMessage(error.data, error.message));
     } finally {
