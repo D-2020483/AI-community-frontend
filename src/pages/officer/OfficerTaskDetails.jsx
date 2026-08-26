@@ -21,7 +21,7 @@ import { useOfficer } from "@/context/OfficerContext";
 import { useAuth } from "@/context/AuthContext";
 import { getErrorMessage } from "@/lib/api";
 import {
-  ACTION_BTN,
+  PRIMARY_BTN,
   OFFICER_STATUS_FLOW,
   allowedStatusOptions,
   canTransitionStatus,
@@ -285,7 +285,7 @@ export default function OfficerTaskDetails() {
               <button
                 onClick={handleAccept}
                 disabled={!canAccept}
-                className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm shadow-indigo-600/20 transition-all active:scale-[0.98] cursor-pointer ${ACTION_BTN}`}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl ${PRIMARY_BTN}`}
               >
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 {accepting
@@ -305,7 +305,7 @@ export default function OfficerTaskDetails() {
                   );
                 }}
                 disabled={!canNavigate}
-                className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl shadow-sm transition-all active:scale-[0.98] cursor-pointer ${ACTION_BTN}`}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl ${PRIMARY_BTN}`}
               >
                 🧭 Navigate to Incident
               </button>
@@ -355,7 +355,7 @@ export default function OfficerTaskDetails() {
               <button
                 onClick={handleSubmitUpdate}
                 disabled={!canPostUpdate}
-                className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm shadow-indigo-600/20 transition-all active:scale-[0.98] cursor-pointer ${ACTION_BTN}`}
+                className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl ${PRIMARY_BTN}`}
               >
                 <Send className="h-3.5 w-3.5" />
                 {postingUpdate ? "Submitting..." : "Submit update"}
@@ -392,7 +392,7 @@ export default function OfficerTaskDetails() {
               <button
                 onClick={handleSave}
                 disabled={!canSaveStatus}
-                className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm shadow-emerald-600/20 transition-all active:scale-[0.98] cursor-pointer ${ACTION_BTN}`}
+                className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl ${PRIMARY_BTN}`}
               >
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 {saving ? "Saving..." : "Save Changes"}
@@ -401,7 +401,7 @@ export default function OfficerTaskDetails() {
               <button
                 onClick={handleResolve}
                 disabled={!canResolve}
-                className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl shadow-sm transition-all active:scale-[0.98] cursor-pointer ${ACTION_BTN}`}
+                className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl ${PRIMARY_BTN}`}
               >
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 {resolving

@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { ResponsiveSidebar } from "@/layouts/citizen/ResponsiveSidebar";
 import { HeaderNavbar } from "@/layouts/citizen/HeaderNavbar";
@@ -6,7 +6,7 @@ import { TellUs } from "@/pages/report/TellUs";
 import { SetLocation } from "@/pages/report/SetLocation";
 import { AIAnalysisResult } from "@/pages/report/AIAnalysisResult";
 import { useNavigate } from "react-router-dom";
-import { analyzeReport } from "@/lib/aiService";
+import { analyzeReport, isAbortError } from "@/lib/aiService";
 import { labelForCategory, useIssueCategories } from "@/lib/categoryService";
 import {
   fileToDataUrl,
@@ -15,26 +15,41 @@ import {
 } from "@/lib/reportService";
 import { isValidCoordPair } from "@/lib/actionState";
 
+const PROCESS_IDLE = "idle";
+const PROCESS_SUBMITTING = "submitting";
+const PROCESS_ANALYZING = "analyzing";
+const PROCESS_COMPLETED = "completed";
+
 export default function ReportIssue() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
-  const categoryOptions = useIssueCategories();
+  const { options: categoryOptions } = useIssueCategories();
 
   //from state
   const [imageFile, setImageFile] = useState(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState(null);
-  const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
   const [coords, setCoords] = useState(null);
   const [locationConfirmed, setLocationConfirmed] = useState(false);
 
   //AI state / submission status
-  const [submitting, setSubmitting] = useState(false);
+  const [processState, setProcessState] = useState(PROCESS_IDLE);
   const [submitError, setSubmitError] = useState(null);
   const [aiResult, setAiResult] = useState(null);
+  const requestIdRef = useRef(0);
+  const abortRef = useRef(null);
 
-  const isSubmitted = Boolean(aiResult);
+  const isBusy =
+    processState === PROCESS_SUBMITTING || processState === PROCESS_ANALYZING;
+  const isSubmitted =
+    processState === PROCESS_COMPLETED && Boolean(aiResult);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -45,6 +60,7 @@ export default function ReportIssue() {
   }, [imagePreviewUrl]);
 
   const handleImageChange = (file) => {
+    if (isBusy) return;
     setImageFile(file);
 
     setImagePreviewUrl((previous) => {
@@ -54,56 +70,89 @@ export default function ReportIssue() {
   };
   const canSubmit = Boolean(
     imageFile &&
-      category &&
       description.trim() &&
       locationConfirmed &&
       location.trim() &&
       isValidCoordPair(coords?.lat, coords?.lng) &&
-      !submitting,
+      processState === PROCESS_IDLE,
   );
+
+  const isCurrentRequest = (requestId) =>
+    requestId === requestIdRef.current && !abortRef.current?.signal?.aborted;
+
+  const resetCancelledUi = () => {
+    setAiResult(null);
+    setSubmitError(null);
+    setProcessState(PROCESS_IDLE);
+  };
+
+  const handleStop = () => {
+    if (!isBusy) return;
+    requestIdRef.current += 1;
+    abortRef.current?.abort();
+    abortRef.current = null;
+    toast.dismiss("report-submitted");
+    resetCancelledUi();
+  };
 
   // submit report to AI service
   const handleSubmit = async () => {
-    if (!canSubmit || submitting) return;
+    if (!canSubmit || isBusy) return;
+
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setSubmitError(null);
-    setSubmitting(true);
+    setAiResult(null);
+    setProcessState(PROCESS_SUBMITTING);
+    let completed = false;
 
     try {
+      setProcessState(PROCESS_ANALYZING);
       const result = await analyzeReport({
         file: imageFile,
-        category,
+        category: null,
         description,
         location,
+        signal: controller.signal,
       });
 
-      console.log("AI Analysis Result:", result);
+      if (!isCurrentRequest(requestId)) return;
 
-      setAiResult(result);
+      setProcessState(PROCESS_SUBMITTING);
 
       try {
         const imageDataUrl = imageFile
           ? toStoredImageUrl(await fileToDataUrl(imageFile))
           : null;
 
-        await saveTrackedReport({
-          reportId: result.report_id,
-          description,
-          location,
-          locationName: location,
-          latitude: coords.lat,
-          longitude: coords.lng,
-          lat: coords.lat,
-          lng: coords.lng,
-          imageUrl: imageDataUrl,
-          category: result.issue_category,
-          authority: result.assigned_authority?.name || "Relevant Authority",
-          detectedIssue: result.detected_issue,
-          priority: result.priority,
-          confidence: result.confidence,
-          reason: result.reason,
-          status: "ASSIGNED",
-        });
+        if (!isCurrentRequest(requestId)) return;
+
+        await saveTrackedReport(
+          {
+            reportId: result.report_id,
+            description,
+            location,
+            locationName: location,
+            latitude: coords.lat,
+            longitude: coords.lng,
+            lat: coords.lat,
+            lng: coords.lng,
+            imageUrl: imageDataUrl,
+            category: result.issue_category,
+            authority: result.assigned_authority?.name || "Relevant Authority",
+            detectedIssue: result.detected_issue,
+            priority: result.priority,
+            confidence: result.confidence,
+            reason: result.reason,
+            status: "ASSIGNED",
+          },
+          { signal: controller.signal },
+        );
       } catch (saveErr) {
+        if (!isCurrentRequest(requestId) || isAbortError(saveErr)) return;
         console.error("Failed to save report:", saveErr);
         toast.error(
           saveErr?.message ||
@@ -111,19 +160,30 @@ export default function ReportIssue() {
         );
       }
 
+      if (!isCurrentRequest(requestId)) return;
+
+      completed = true;
+      setAiResult(result);
+      setProcessState(PROCESS_COMPLETED);
+
       toast.success("Report submitted successfully! AI analysis complete.", {
         id: "report-submitted",
       });
     } catch (err) {
+      if (!isCurrentRequest(requestId) || isAbortError(err)) return;
+
       console.error("AI analysis error:", err);
 
       const errorMessage = err?.message || "Failed to analyze the report.";
 
       setSubmitError(errorMessage);
-
+      setProcessState(PROCESS_IDLE);
       toast.error(errorMessage);
     } finally {
-      setSubmitting(false);
+      if (abortRef.current === controller) abortRef.current = null;
+      if (!completed && requestId === requestIdRef.current) {
+        setProcessState(PROCESS_IDLE);
+      }
     }
   };
 
@@ -229,11 +289,9 @@ export default function ReportIssue() {
                     imageFile={imageFile}
                     imagePreviewUrl={imagePreviewUrl}
                     onImageChange={handleImageChange}
-                    category={category}
-                    onCategoryChange={setCategory}
                     description={description}
                     onDescriptionChange={setDescription}
-                    categoryOptions={categoryOptions}
+                    disabled={isBusy}
                   />
                 </div>
                 <div
@@ -248,7 +306,9 @@ export default function ReportIssue() {
                     locationConfirmed={locationConfirmed}
                     onLocationConfirmed={setLocationConfirmed}
                     onSubmit={handleSubmit}
-                    submitting={submitting}
+                    onStop={handleStop}
+                    processState={processState}
+                    submitting={isBusy}
                     canSubmit={canSubmit}
                     error={submitError}
                   />

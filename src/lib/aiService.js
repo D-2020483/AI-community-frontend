@@ -6,11 +6,43 @@ const AI_SERVICE_URL = getAiServiceUrl();
  * Reads a File/Blob as a base64 data URL
  * (e.g. "data:image/jpeg;base64,/9j/4AAQ...").
  */
-function fileToDataUrl(file) {
+export function isAbortError(err) {
+  return (
+    err?.name === "AbortError" ||
+    err?.cancelled === true ||
+    err?.code === "ERR_CANCELED"
+  );
+}
+
+function cancelledError() {
+  const error = new Error("Report submission cancelled.");
+  error.name = "AbortError";
+  error.cancelled = true;
+  return error;
+}
+
+function fileToDataUrl(file, signal) {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(cancelledError());
+      return;
+    }
+
     const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error("Could not read the selected file"));
+    const onAbort = () => {
+      reader.abort();
+      reject(cancelledError());
+    };
+
+    signal?.addEventListener("abort", onAbort, { once: true });
+    reader.onload = () => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve(reader.result);
+    };
+    reader.onerror = () => {
+      signal?.removeEventListener("abort", onAbort);
+      reject(new Error("Could not read the selected file"));
+    };
     reader.readAsDataURL(file);
   });
 }
@@ -21,12 +53,19 @@ function fileToDataUrl(file) {
  *
  * Throws an Error with a user-facing message on failure.
  */
-export async function analyzeReport({ file, category, description, location }) {
+export async function analyzeReport({
+  file,
+  category,
+  description,
+  location,
+  signal,
+}) {
   if (!file) throw new Error("Please attach a photo of the issue.");
   if (!description?.trim()) throw new Error("Please describe the issue.");
   if (!location?.trim()) throw new Error("Please set a location.");
 
-  const imageDataUrl = await fileToDataUrl(file);
+  const imageDataUrl = await fileToDataUrl(file, signal);
+  if (signal?.aborted) throw cancelledError();
 
   let response;
   try {
@@ -40,12 +79,16 @@ export async function analyzeReport({ file, category, description, location }) {
         description,
         location,
       }),
+      signal,
     });
   } catch (networkErr) {
+    if (isAbortError(networkErr) || signal?.aborted) throw cancelledError();
     throw new Error(
       "Couldn't reach the AI service. Is it running at " + AI_SERVICE_URL + "?",
     );
   }
+
+  if (signal?.aborted) throw cancelledError();
 
   if (!response.ok) {
     let detail = `AI analysis failed (${response.status})`;
@@ -58,5 +101,7 @@ export async function analyzeReport({ file, category, description, location }) {
     throw new Error(detail);
   }
 
-  return response.json(); // ReportAnalyzeResponse
+  const result = await response.json();
+  if (signal?.aborted) throw cancelledError();
+  return result;
 }

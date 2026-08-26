@@ -7,6 +7,10 @@ import { FilterBar } from "@/components/authority/FilterBar";
 import { ReportTable } from "@/components/authority/ReportTable";
 import { useAuthority } from "@/context/AuthorityContext";
 import { markReportsSeen, REPORT_SEEN_KEYS } from "@/lib/reportBadges";
+import {
+  matchesCategoryFilter,
+  useIssueCategories,
+} from "@/lib/categoryService";
 
 export default function AuthorityReports() {
   const navigate = useNavigate();
@@ -19,6 +23,8 @@ export default function AuthorityReports() {
   const [status, setStatus] = useState("All Status");
   const [location, setLocation] = useState("All Locations");
   const [sort, setSort] = useState("newest");
+  const { options: categoryOptions, loading: categoriesLoading } =
+    useIssueCategories();
 
   useEffect(() => {
     refreshReports();
@@ -32,10 +38,9 @@ export default function AuthorityReports() {
     );
   }, [reports]);
 
-  // Derive filter options from the authority's own reports.
   const categories = useMemo(
-    () => ["All Categories", ...new Set(reports.map((r) => r.category))],
-    [reports],
+    () => ["All Categories", ...categoryOptions.map((option) => option.label)],
+    [categoryOptions],
   );
   const locations = useMemo(
     () => [
@@ -60,8 +65,11 @@ export default function AuthorityReports() {
         r.id?.toLowerCase().includes(q) ||
         r.location?.toLowerCase().includes(q) ||
         r.category?.toLowerCase().includes(q);
-      const matchCategory =
-        category === "All Categories" || r.category === category;
+      const matchCategory = matchesCategoryFilter(
+        r.category,
+        category,
+        categoryOptions,
+      );
       const matchPriority =
         priority === "All Priority" || r.priority === priority;
       const matchStatus = status === "All Status" || r.status === status;
@@ -90,7 +98,7 @@ export default function AuthorityReports() {
       list = [...list].sort((a, b) => order[b.priority] - order[a.priority]);
     }
     return list;
-  }, [reports, query, category, priority, status, location, sort]);
+  }, [reports, query, category, priority, status, location, sort, categoryOptions]);
 
   const resetFilters = () => {
     setQuery("");
@@ -147,6 +155,7 @@ export default function AuthorityReports() {
             value: category,
             onChange: setCategory,
             options: categories,
+            disabled: categoriesLoading,
           },
           {
             key: "priority",

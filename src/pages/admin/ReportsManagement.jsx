@@ -37,6 +37,10 @@ import { apiRequest, getErrorMessage } from "@/lib/api";
 import { mapAdminReportFromApi } from "@/lib/adminMappers";
 import { markReportsSeen, REPORT_SEEN_KEYS } from "@/lib/reportBadges";
 import { ACTION_BTN } from "@/lib/actionState";
+import {
+  matchesCategoryFilter,
+  useIssueCategories,
+} from "@/lib/categoryService";
 
 const PAGE_SIZE = 7;
 
@@ -94,6 +98,8 @@ export default function ReportsManagement() {
   const [deleteReport, setDeleteReport] = useState(null);
   const [assigning, setAssigning] = useState(false);
   const [busy, setBusy] = useState(false);
+  const { options: categoryOptions, loading: categoriesLoading } =
+    useIssueCategories({ source: "admin" });
 
   useEffect(() => {
     let cancelled = false;
@@ -125,8 +131,8 @@ export default function ReportsManagement() {
   }, []);
 
   const categories = useMemo(
-    () => [...new Set(reports.map((r) => r.category).filter(Boolean))],
-    [reports],
+    () => categoryOptions.map((option) => option.label).filter(Boolean),
+    [categoryOptions],
   );
   const authorities = useMemo(
     () => [...new Set(reports.map((r) => r.authority).filter((v) => v && v !== "—"))],
@@ -152,9 +158,11 @@ export default function ReportsManagement() {
         r.id.toLowerCase().includes(q) ||
         r.citizen.toLowerCase().includes(q) ||
         r.location.toLowerCase().includes(q);
-      const matchCategory =
-        filters.category === "All Categories" ||
-        r.category === filters.category;
+      const matchCategory = matchesCategoryFilter(
+        r.category,
+        filters.category,
+        categoryOptions,
+      );
       const matchAuthority =
         filters.authority === "All Authorities" ||
         r.authority === filters.authority;
@@ -176,7 +184,7 @@ export default function ReportsManagement() {
         matchPriority
       );
     });
-  }, [reports, query, filters]);
+  }, [reports, query, filters, categoryOptions]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice(
@@ -302,6 +310,7 @@ export default function ReportsManagement() {
             <select
               value={filters.category}
               onChange={(e) => setFilter("category", e.target.value)}
+              disabled={categoriesLoading}
               className={selectClass}
             >
               {["All Categories", ...categories].map((c) => (
@@ -309,6 +318,15 @@ export default function ReportsManagement() {
               ))}
             </select>
             <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+            {categoriesLoading ? (
+              <p className="mt-1 text-[10px] text-slate-400">
+                Loading categories...
+              </p>
+            ) : categories.length === 0 ? (
+              <p className="mt-1 text-[10px] text-slate-400">
+                No categories available.
+              </p>
+            ) : null}
           </div>
           <div className="relative">
             <select

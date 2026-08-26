@@ -7,10 +7,12 @@ import {
   ArrowRight,
   AlertCircle,
   Loader2,
+  Square,
 } from "lucide-react";
 import { LocationPickerMap } from "@/components/map/LocationPickerMap";
 import {
   ACTION_BTN,
+  PRIMARY_BTN,
   isValidCoordPair,
   parseCoordinates,
   reverseGeocode,
@@ -25,6 +27,8 @@ export function SetLocation({
   locationConfirmed,
   onLocationConfirmed,
   onSubmit,
+  onStop,
+  processState = "idle",
   submitting,
   canSubmit,
   error,
@@ -41,6 +45,14 @@ export function SetLocation({
   const locationLoading = searching || geoLoading;
   const hasValidCoords = isValidCoordPair(coords?.lat, coords?.lng);
   const canConfirm = hasValidCoords && !locationConfirmed && !locationLoading;
+  const inFlight =
+    submitting ||
+    processState === "submitting" ||
+    processState === "analyzing";
+  const statusLabel =
+    processState === "submitting"
+      ? "Submitting..."
+      : "Analyzing your report...";
 
   const applyLocation = (
     address,
@@ -327,8 +339,8 @@ export function SetLocation({
         <button
           type="button"
           onClick={handleConfirm}
-          disabled={!canConfirm}
-          className={`w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${ACTION_BTN}`}
+          disabled={!canConfirm || inFlight}
+          className={`w-full py-3 px-4 font-semibold text-xs rounded-xl flex items-center justify-center gap-2 cursor-pointer ${PRIMARY_BTN}`}
         >
           {locationLoading ? (
             <>
@@ -350,24 +362,32 @@ export function SetLocation({
         )}
       </div>
 
-      <button
-        type="button"
-        onClick={onSubmit}
-        disabled={submitting || !canSubmit}
-        className={`w-full mt-6 py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-xs shadow-indigo-600/20 transition-all hover:shadow-md hover:shadow-indigo-600/30 flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] ${ACTION_BTN}`}
-      >
-        {submitting ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Submitting...</span>
-          </>
-        ) : (
-          <>
-            <span>Submit Report</span>
-            <ArrowRight className="h-4 w-4" />
-          </>
-        )}
-      </button>
+      {inFlight ? (
+        <div className="mt-6 space-y-2">
+          <p className="flex items-center justify-center gap-2 text-xs font-semibold text-slate-600">
+            <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
+            <span>{statusLabel}</span>
+          </p>
+          <button
+            type="button"
+            onClick={onStop}
+            className={`w-full py-3 px-4 bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 hover:border-rose-300 font-semibold text-xs rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99] ${ACTION_BTN}`}
+          >
+            <Square className="h-3.5 w-3.5 fill-current" />
+            <span>Stop</span>
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={onSubmit}
+          disabled={!canSubmit}
+          className={`w-full mt-6 py-3 px-4 font-semibold text-xs rounded-xl flex items-center justify-center gap-2 cursor-pointer ${PRIMARY_BTN}`}
+        >
+          <span>Submit Report</span>
+          <ArrowRight className="h-4 w-4" />
+        </button>
+      )}
     </div>
   );
 }

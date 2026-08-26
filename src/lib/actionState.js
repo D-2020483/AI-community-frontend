@@ -5,6 +5,9 @@ import { apiRequest } from "@/lib/api";
 export const ACTION_BTN =
   "disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:hover:shadow-none disabled:active:scale-100";
 
+export const PRIMARY_BTN =
+  `bg-indigo-600 hover:bg-indigo-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-600/15 text-white shadow-xs shadow-indigo-600/20 hover:shadow-md hover:shadow-indigo-600/30 transition-all active:scale-[0.99] ${ACTION_BTN}`;
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function isValidEmail(value) {

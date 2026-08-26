@@ -36,8 +36,9 @@ export function FilterBar({
             <select
               value={f.value}
               onChange={(e) => f.onChange(e.target.value)}
-              className={selectClass}
+              className={`${selectClass} ${f.disabled ? "opacity-50 cursor-not-allowed" : ""}`}
               aria-label={f.label}
+              disabled={f.disabled}
             >
               {f.options.map((o) => (
                 <option key={o} value={o}>

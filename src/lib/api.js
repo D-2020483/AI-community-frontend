@@ -223,10 +223,24 @@ export async function apiRequest(path, options = {}, retry = true) {
     headers["X-App-Origin"] = window.location.origin;
   }
 
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers,
-  });
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers,
+    });
+  } catch (error) {
+    if (error?.name === "AbortError" || options.signal?.aborted) {
+      throw error;
+    }
+    throw error;
+  }
+
+  if (options.signal?.aborted) {
+    const error = new Error("Request cancelled.");
+    error.name = "AbortError";
+    throw error;
+  }
 
   let data = {};
   try {
@@ -235,7 +249,7 @@ export async function apiRequest(path, options = {}, retry = true) {
     data = {};
   }
 
-  if (response.status === 401 && retry && !isPublicAuthPath(path)) {
+  if (response.status === 401 && retry && !isPublicAuthPath(path) && !options.signal?.aborted) {
     const currentToken = getToken();
     if (currentToken && token && currentToken !== token) {
       return apiRequest(path, options, false);

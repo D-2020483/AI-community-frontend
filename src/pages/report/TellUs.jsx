@@ -1,22 +1,19 @@
 import React, { useRef, useState } from "react";
-import { UploadCloud, Wrench, ChevronDown, X } from "lucide-react";
-import { CATEGORY_OPTIONS } from "@/data/issueCategories";
+import { UploadCloud, X } from "lucide-react";
 
 export function TellUs({
   imageFile,
   imagePreviewUrl,
   onImageChange,
-  category,
-  onCategoryChange,
   description,
   onDescriptionChange,
-  categoryOptions = CATEGORY_OPTIONS,
+  disabled = false,
 }) {
   const fileInputRef = useRef(null);
   const [dragActive, setDragActive] = useState(false);
 
   const acceptFile = (file) => {
-    if (!file) return;
+    if (!file || disabled) return;
     if (!file.type?.startsWith("image/")) return;
     onImageChange(file);
   };
@@ -47,6 +44,20 @@ export function TellUs({
             Include a clear photo and a few helpful details.
           </p>
         </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-xs font-bold text-slate-700">
+          Issue Description
+        </label>
+        <textarea
+          rows={4}
+          value={description}
+          disabled={disabled}
+          onChange={(e) => onDescriptionChange(e.target.value)}
+          placeholder="Describe the environmental issue..."
+          className="w-full p-3.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/15 shadow-sm transition-all resize-none disabled:opacity-50 disabled:cursor-not-allowed"
+        />
       </div>
 
       <input
@@ -107,7 +118,7 @@ export function TellUs({
             <UploadCloud className="h-5 w-5" />
           </div>
           <span className="text-xs font-bold text-slate-800">
-            Upload a photo of the issue
+            Upload Image
           </span>
           <span className="text-[11px] text-slate-400 mt-1">
             Drag and drop or{" "}
@@ -118,45 +129,6 @@ export function TellUs({
           </span>
         </div>
       )}
-
-      <div className="space-y-1.5">
-        <label className="text-xs font-bold text-slate-700">
-          Issue type *
-        </label>
-        <div className="relative">
-          <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none text-slate-600">
-            <Wrench className="h-4 w-4" />
-          </div>
-          <select
-            value={category}
-            onChange={(e) => onCategoryChange(e.target.value)}
-            className="w-full pl-10 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 appearance-none focus:outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/15 shadow-sm transition-all cursor-pointer"
-          >
-            <option value="">Select issue type</option>
-            {categoryOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          <div className="absolute inset-y-0 right-3.5 flex items-center pointer-events-none text-slate-400">
-            <ChevronDown className="h-4 w-4" />
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-1.5">
-        <label className="text-xs font-bold text-slate-700">
-          Describe the issue
-        </label>
-        <textarea
-          rows={4}
-          value={description}
-          onChange={(e) => onDescriptionChange(e.target.value)}
-          placeholder="Tell us what needs attention. Include landmarks or details that may help the response team."
-          className="w-full p-3.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/15 shadow-sm transition-all resize-none"
-        />
-      </div>
     </div>
   );
 }

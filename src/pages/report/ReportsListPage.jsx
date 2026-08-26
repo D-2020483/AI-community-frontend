@@ -23,13 +23,16 @@ import { downloadReport } from "@/lib/reportDownload";
 import ReportDetailsModal from "@/components/reports/ReportDetailsModal";
 import {
   reportSuggestions,
-  reportCategories,
   reportStatuses,
   reportPriorities,
   dateRanges,
 } from "@/data/reportsData";
 import { getMyReports } from "@/lib/reportService";
 import { markReportsSeen, REPORT_SEEN_KEYS } from "@/lib/reportBadges";
+import {
+  matchesCategoryFilter,
+  useIssueCategories,
+} from "@/lib/categoryService";
 
 const PAGE_SIZE = 6;
 
@@ -114,6 +117,12 @@ export default function ReportsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [detailsReport, setDetailsReport] = useState(null);
   const searchRef = useRef(null);
+  const { options: categoryOptions, loading: categoriesLoading } =
+    useIssueCategories();
+  const reportCategories = useMemo(
+    () => ["All Categories", ...categoryOptions.map((option) => option.label)],
+    [categoryOptions],
+  );
 
   useEffect(() => {
     const fetchReports = async () => {
@@ -162,15 +171,18 @@ export default function ReportsPage() {
         r.location?.toLowerCase().includes(q) ||
         r.category?.toLowerCase().includes(q);
       const matchesStatus = status === "All Status" || r.status === status;
-      const matchesCategory =
-        category === "All Categories" || r.category === category;
+      const matchesCategory = matchesCategoryFilter(
+        r.category,
+        category,
+        categoryOptions,
+      );
       const matchesPriority =
         priority === "All Priority" || r.priority === priority;
       return (
         matchesQuery && matchesStatus && matchesCategory && matchesPriority
       );
     });
-  }, [reportsData, query, status, category, priority]);
+  }, [reportsData, query, status, category, priority, categoryOptions]);
 
   const totalPages = Math.max(1, Math.ceil(filteredReports.length / PAGE_SIZE));
   const paginated = filteredReports.slice(
@@ -299,6 +311,7 @@ export default function ReportsPage() {
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
+                  disabled={categoriesLoading}
                   className={selectClass}
                 >
                   {reportCategories.map((c) => (
@@ -306,6 +319,15 @@ export default function ReportsPage() {
                   ))}
                 </select>
                 <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                {categoriesLoading ? (
+                  <p className="mt-1 text-[10px] text-slate-400">
+                    Loading categories...
+                  </p>
+                ) : categoryOptions.length === 0 ? (
+                  <p className="mt-1 text-[10px] text-slate-400">
+                    No categories available.
+                  </p>
+                ) : null}
               </div>
 
               <div className="relative">

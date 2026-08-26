@@ -163,10 +163,11 @@ export async function getOfficerNotifications() {
   return data.data?.notifications || [];
 }
 
-export async function saveTrackedReport(payload) {
+export async function saveTrackedReport(payload, { signal } = {}) {
   const result = await apiRequest("/complaints/track", {
     method: "POST",
     body: JSON.stringify(payload),
+    signal,
   });
   invalidateMyReportsCache();
   return result;
