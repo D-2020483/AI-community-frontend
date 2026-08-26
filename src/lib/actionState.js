@@ -1,5 +1,7 @@
 /** Shared action-validity helpers used by Civic Link buttons. */
 
+import { apiRequest } from "@/lib/api";
+
 export const ACTION_BTN =
   "disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:hover:shadow-none disabled:active:scale-100";
 
@@ -47,32 +49,80 @@ export function navigationUrl(lat, lng) {
   )}`;
 }
 
-export async function searchPlace(query) {
-  const q = String(query || "").trim();
-  if (!q) return null;
-
-  const fromCoords = parseCoordinates(q);
-  if (fromCoords) {
-    return { ...fromCoords, displayName: q };
-  }
-
-  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
-  const response = await fetch(url, { headers: { Accept: "application/json" } });
-  if (!response.ok) return null;
-
-  const rows = await response.json();
-  const hit = rows?.[0];
-  if (!hit) return null;
-
-  const lat = Number(hit.lat);
-  const lng = Number(hit.lon);
+function mapGeocodeHit(hit, fallbackName) {
+  const lat = Number(hit?.lat);
+  const lng = Number(hit?.lng ?? hit?.lon);
   if (!isValidCoordPair(lat, lng)) return null;
-
   return {
     lat,
     lng,
-    displayName: hit.display_name || q,
+    displayName: hit.displayName || hit.display_name || hit.name || fallbackName,
   };
+}
+
+async function searchPlacesNominatim(query, { signal } = {}) {
+  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&q=${encodeURIComponent(query)}`;
+  const response = await fetch(url, {
+    headers: { Accept: "application/json" },
+    signal,
+  });
+  if (!response.ok) return [];
+  const rows = await response.json();
+  return (Array.isArray(rows) ? rows : [])
+    .map((hit) => mapGeocodeHit(hit, query))
+    .filter(Boolean);
+}
+
+async function reverseGeocodeNominatim(lat, lng, { signal } = {}) {
+  const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}`;
+  const response = await fetch(url, {
+    headers: { Accept: "application/json" },
+    signal,
+  });
+  if (!response.ok) return null;
+  return mapGeocodeHit(await response.json(), `${lat}, ${lng}`);
+}
+
+export async function searchPlaces(query, options = {}) {
+  const q = String(query || "").trim();
+  if (!q) return [];
+
+  const fromCoords = parseCoordinates(q);
+  if (fromCoords) {
+    return [{ ...fromCoords, displayName: q }];
+  }
+
+  try {
+    const data = await apiRequest(`/places/search?q=${encodeURIComponent(q)}`);
+    const rows = Array.isArray(data?.data) ? data.data : [];
+    const mapped = rows.map((hit) => mapGeocodeHit(hit, q)).filter(Boolean);
+    if (mapped.length) return mapped;
+  } catch {
+    /* Fall back to public geocoding if the API is unavailable. */
+  }
+
+  return searchPlacesNominatim(q, options);
+}
+
+export async function reverseGeocode(lat, lng, options = {}) {
+  if (!isValidCoordPair(lat, lng)) return null;
+
+  try {
+    const data = await apiRequest(
+      `/places/reverse?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`,
+    );
+    const mapped = mapGeocodeHit(data?.data, `${lat}, ${lng}`);
+    if (mapped) return mapped;
+  } catch {
+    /* Fall back to public geocoding if the API is unavailable. */
+  }
+
+  return reverseGeocodeNominatim(lat, lng, options);
+}
+
+export async function searchPlace(query) {
+  const results = await searchPlaces(query);
+  return results[0] || null;
 }
 
 export const REPORT_STATUS_FLOW = [

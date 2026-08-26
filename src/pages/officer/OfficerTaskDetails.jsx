@@ -15,7 +15,7 @@ import toast from "react-hot-toast";
 import { OfficerLayout } from "@/layouts/officer/OfficerLayout";
 import { TaskStatusBadge } from "@/components/officer/TaskStatusBadge";
 import { ActionCard } from "@/components/officer/ActionCard";
-import { MapPlaceholder } from "@/components/authority/MapPlaceholder";
+import { IncidentMap } from "@/components/map/IncidentMap";
 import { ActivityTimeline } from "@/components/authority/ActivityTimeline";
 import { useOfficer } from "@/context/OfficerContext";
 import { useAuth } from "@/context/AuthContext";
@@ -256,12 +256,15 @@ export default function OfficerTaskDetails() {
 
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 animate-slide-up">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">
-              Navigation
+              Incident location
             </h3>
-            <MapPlaceholder
+            <IncidentMap
               location={task.location}
-              lat={task.lat}
-              lng={task.lng}
+              lat={incidentCoords?.lat}
+              lng={incidentCoords?.lng}
+              reportId={task.id}
+              title={task.title}
+              description={task.description}
             />
           </div>
 
@@ -304,8 +307,7 @@ export default function OfficerTaskDetails() {
                 disabled={!canNavigate}
                 className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl shadow-sm transition-all active:scale-[0.98] cursor-pointer ${ACTION_BTN}`}
               >
-                <MapPin className="h-3.5 w-3.5" />
-                Navigate to Incident
+                🧭 Navigate to Incident
               </button>
               <button
                 onClick={() => navigate("/officer/updates")}

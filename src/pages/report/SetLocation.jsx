@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   MapPin,
   Search,
@@ -8,11 +8,13 @@ import {
   AlertCircle,
   Loader2,
 } from "lucide-react";
+import { LocationPickerMap } from "@/components/map/LocationPickerMap";
 import {
   ACTION_BTN,
   isValidCoordPair,
   parseCoordinates,
-  searchPlace,
+  reverseGeocode,
+  searchPlaces,
 } from "@/lib/actionState";
 
 export function SetLocation({
@@ -28,24 +30,37 @@ export function SetLocation({
   error,
 }) {
   const [query, setQuery] = useState(location || "");
+  const [suggestions, setSuggestions] = useState([]);
   const [searching, setSearching] = useState(false);
   const [geoLoading, setGeoLoading] = useState(false);
   const [searchError, setSearchError] = useState("");
+  const [recenterNonce, setRecenterNonce] = useState(0);
+  const skipSuggestRef = useRef(false);
+  const suggestTimerRef = useRef(null);
 
   const locationLoading = searching || geoLoading;
   const hasValidCoords = isValidCoordPair(coords?.lat, coords?.lng);
   const canConfirm = hasValidCoords && !locationConfirmed && !locationLoading;
 
-  const applyLocation = (address, nextCoords, { confirm = false } = {}) => {
+  const applyLocation = (
+    address,
+    nextCoords,
+    { confirm = false, preserveConfirm = false, recenter = false } = {},
+  ) => {
     setQuery(address);
     onLocationChange(address);
     onCoordsChange(nextCoords);
-    onLocationConfirmed(Boolean(confirm && isValidCoordPair(nextCoords?.lat, nextCoords?.lng)));
+    if (recenter) setRecenterNonce((value) => value + 1);
+    if (preserveConfirm) return;
+    onLocationConfirmed(
+      Boolean(confirm && isValidCoordPair(nextCoords?.lat, nextCoords?.lng)),
+    );
   };
 
   const handleQueryChange = (value) => {
     setSearchError("");
     setQuery(value);
+    skipSuggestRef.current = false;
     const parsed = parseCoordinates(value);
     onLocationChange(value);
     if (parsed) {
@@ -56,26 +71,95 @@ export function SetLocation({
     onLocationConfirmed(false);
   };
 
+  const selectResult = (result) => {
+    skipSuggestRef.current = true;
+    setSuggestions([]);
+    applyLocation(result.displayName, { lat: result.lat, lng: result.lng }, {
+      recenter: true,
+    });
+  };
+
   const handleSearch = async () => {
     if (!query.trim() || locationLoading) return;
     setSearching(true);
     setSearchError("");
     try {
-      const result = await searchPlace(query);
-      if (!result) {
-        setSearchError("No matching location found. Try another search or use current location.");
+      const results = await searchPlaces(query);
+      if (!results.length) {
+        setSuggestions([]);
+        setSearchError(
+          "No matching location found. Try another search, click the map, or use My Current Location.",
+        );
         onCoordsChange(null);
         onLocationConfirmed(false);
         return;
       }
-      applyLocation(result.displayName, {
-        lat: result.lat,
-        lng: result.lng,
-      });
+      setSuggestions(results);
+      skipSuggestRef.current = true;
+      applyLocation(
+        results[0].displayName,
+        { lat: results[0].lat, lng: results[0].lng },
+        { recenter: true },
+      );
     } catch {
+      setSuggestions([]);
       setSearchError("Could not search for that location. Try again.");
     } finally {
       setSearching(false);
+    }
+  };
+
+  useEffect(() => {
+    if (skipSuggestRef.current) return;
+    const value = query.trim();
+    if (value.length < 3 || parseCoordinates(value)) {
+      setSuggestions([]);
+      return;
+    }
+
+    clearTimeout(suggestTimerRef.current);
+    suggestTimerRef.current = setTimeout(async () => {
+      setSearching(true);
+      setSearchError("");
+      try {
+        const results = await searchPlaces(value);
+        setSuggestions(results);
+        if (!results.length) {
+          setSearchError("");
+        }
+      } catch {
+        setSuggestions([]);
+        setSearchError("Could not search for that location. Try again.");
+      } finally {
+        setSearching(false);
+      }
+    }, 600);
+
+    return () => clearTimeout(suggestTimerRef.current);
+  }, [query]);
+
+  const nameForCoords = async (nextCoords, fallback) => {
+    try {
+      const result = await reverseGeocode(nextCoords.lat, nextCoords.lng);
+      return result?.displayName || fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
+  const handleMapCoords = async (nextCoords) => {
+    if (!isValidCoordPair(nextCoords?.lat, nextCoords?.lng)) return;
+    const fallback = `${Number(nextCoords.lat).toFixed(5)}, ${Number(nextCoords.lng).toFixed(5)}`;
+    skipSuggestRef.current = true;
+    setSuggestions([]);
+    applyLocation(fallback, nextCoords);
+    setGeoLoading(true);
+    setSearchError("");
+    try {
+      const name = await nameForCoords(nextCoords, fallback);
+      applyLocation(name, nextCoords, { preserveConfirm: true });
+    } finally {
+      setGeoLoading(false);
     }
   };
 
@@ -84,16 +168,23 @@ export function SetLocation({
     setGeoLoading(true);
     setSearchError("");
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         const next = {
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
         };
-        applyLocation(
-          `${next.lat.toFixed(5)}, ${next.lng.toFixed(5)}`,
-          next,
-        );
-        setGeoLoading(false);
+        const fallback = `${next.lat.toFixed(5)}, ${next.lng.toFixed(5)}`;
+        skipSuggestRef.current = true;
+        setSuggestions([]);
+        applyLocation(fallback, next, { recenter: true });
+        try {
+          const name = await nameForCoords(next, fallback);
+          applyLocation(name, next, { recenter: true, preserveConfirm: true });
+        } catch {
+          setSearchError("Could not read your current location.");
+        } finally {
+          setGeoLoading(false);
+        }
       },
       () => {
         setSearchError("Could not read your current location.");
@@ -115,100 +206,96 @@ export function SetLocation({
             2
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-900">
-              Set the location
-            </h3>
+            <h3 className="text-base font-bold text-slate-900">Location</h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              Pinpoint where the issue is happening.
+              Choose where the incident happened. This can be different from
+              where you are now.
             </p>
           </div>
         </div>
 
-        <div className="relative h-64 w-full bg-slate-100 rounded-xl overflow-hidden border border-slate-200/60 flex items-center justify-center">
-          <svg
-            className="absolute inset-0 w-full h-full stroke-white stroke-6"
-            fill="none"
-          >
-            <line x1="0" y1="20%" x2="100%" y2="80%" />
-            <line x1="20%" y1="0" x2="80%" y2="100%" />
-            <line x1="60%" y1="0" x2="100%" y2="60%" />
-          </svg>
+        <LocationPickerMap
+          coords={coords}
+          onCoordsChange={handleMapCoords}
+          recenterNonce={recenterNonce}
+        />
 
-          <div className="absolute top-12 left-12 w-20 h-12 bg-slate-200/80 rounded-md transform -rotate-12" />
-          <div className="absolute bottom-12 left-1/3 w-24 h-12 bg-slate-200/80 rounded-md transform -rotate-12" />
-          <div className="absolute top-12 right-12 w-24 h-12 bg-slate-200/80 rounded-md transform -rotate-12" />
-
-          <div className="relative z-10 flex flex-col items-center max-w-[85%]">
-            <div className="flex items-center gap-1.5 bg-white px-3 py-1 rounded-md shadow-md text-[10px] font-bold text-slate-800 border border-slate-100 mb-1">
-              <span className="truncate">
-                {locationLoading
-                  ? "Locating…"
-                  : location || "Search or drop a pin"}
-              </span>
-            </div>
-            <div
-              className={`h-7 w-7 rounded-full border-2 border-white shadow-lg flex items-center justify-center text-white ${
-                locationConfirmed ? "bg-emerald-500" : "bg-rose-500"
-              }`}
-            >
-              <MapPin className="h-4 w-4 fill-white" />
-            </div>
-            {hasValidCoords && (
-              <p className="mt-2 text-[10px] font-semibold text-slate-500 bg-white/90 px-2 py-0.5 rounded-md">
-                {Number(coords.lat).toFixed(5)}, {Number(coords.lng).toFixed(5)}
-              </p>
-            )}
+        <div className="relative">
+          <div className="relative flex items-center">
+            <Search className="absolute left-3.5 h-4 w-4 text-slate-400 pointer-events-none" />
+            <input
+              value={query}
+              onChange={(e) => handleQueryChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleSearch();
+                }
+              }}
+              type="text"
+              placeholder="Search an address, place, road, or landmark"
+              className="w-full pl-10 pr-12 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/15 shadow-xs transition-all"
+              autoComplete="off"
+            />
+            {searching ? (
+              <Loader2 className="absolute right-3 h-4 w-4 animate-spin text-indigo-500" />
+            ) : null}
           </div>
+          {suggestions.length > 0 && (
+            <ul className="absolute z-20 mt-1 w-full max-h-48 overflow-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+              {suggestions.map((item) => (
+                <li key={`${item.lat},${item.lng},${item.displayName}`}>
+                  <button
+                    type="button"
+                    onClick={() => selectResult(item)}
+                    className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-indigo-50 hover:text-indigo-700"
+                  >
+                    {item.displayName}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
-        <div className="relative flex items-center">
-          <Search className="absolute left-3.5 h-4 w-4 text-slate-400 pointer-events-none" />
-          <input
-            value={query}
-            onChange={(e) => handleQueryChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                handleSearch();
-              }
-            }}
-            type="text"
-            placeholder="Search for an address or place"
-            className="w-full pl-10 pr-12 py-2.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/15 shadow-xs transition-all"
-          />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <button
             type="button"
-            title="Use my current location"
+            onClick={handleSearch}
+            disabled={!query.trim() || locationLoading}
+            className={`w-full py-2.5 px-4 border border-slate-200 text-slate-700 font-semibold text-xs rounded-xl hover:bg-slate-50 transition-all flex items-center justify-center gap-2 cursor-pointer ${ACTION_BTN}`}
+          >
+            {searching ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Searching...</span>
+              </>
+            ) : (
+              <>
+                <Search className="h-4 w-4" />
+                <span>Search location</span>
+              </>
+            )}
+          </button>
+          <button
+            type="button"
             onClick={handleUseCurrentLocation}
             disabled={locationLoading}
-            className={`absolute right-2 p-1.5 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors cursor-pointer ${ACTION_BTN}`}
+            className={`w-full py-2.5 px-4 border border-indigo-200 bg-indigo-50 text-indigo-700 font-semibold text-xs rounded-xl hover:bg-indigo-100 transition-all flex items-center justify-center gap-2 cursor-pointer ${ACTION_BTN}`}
           >
             {geoLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Loading location...</span>
+              </>
             ) : (
-              <Target className="h-4 w-4" />
+              <>
+                <Target className="h-4 w-4" />
+                <span>My Current Location</span>
+              </>
             )}
           </button>
         </div>
-
-        <button
-          type="button"
-          onClick={handleSearch}
-          disabled={!query.trim() || locationLoading}
-          className={`w-full py-2.5 px-4 border border-slate-200 text-slate-700 font-semibold text-xs rounded-xl hover:bg-slate-50 transition-all flex items-center justify-center gap-2 cursor-pointer ${ACTION_BTN}`}
-        >
-          {searching ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Searching...</span>
-            </>
-          ) : (
-            <>
-              <Search className="h-4 w-4" />
-              <span>Search location</span>
-            </>
-          )}
-        </button>
 
         <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50/80 border border-slate-100">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -227,8 +314,8 @@ export function SetLocation({
                 {locationConfirmed
                   ? "Location confirmed"
                   : hasValidCoords
-                    ? "Confirm this location to continue"
-                    : "Selected report location"}
+                    ? `${Number(coords.lat).toFixed(5)}, ${Number(coords.lng).toFixed(5)} — confirm to continue`
+                    : "Search, click the map, or drag the marker"}
               </p>
             </div>
           </div>

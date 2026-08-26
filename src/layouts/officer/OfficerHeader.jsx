@@ -68,7 +68,7 @@ export function OfficerHeader({ title, subtitle, onMenuToggle, unreadCount = 0 }
                 setSearchOpen(true);
               }}
               onFocus={() => setSearchOpen(true)}
-              placeholder="Quick search..."
+              placeholder="Quick navigate..."
               className="w-48 lg:w-64 pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/15 focus:bg-white transition-all"
             />
           </div>

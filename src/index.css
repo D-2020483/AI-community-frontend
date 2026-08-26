@@ -166,3 +166,23 @@
   from { background-position: -200% 0; }
   to { background-position: 200% 0; }
 }
+
+.civic-incident-marker {
+  background: transparent;
+  border: none;
+}
+
+.civic-incident-marker-pin {
+  width: 18px;
+  height: 18px;
+  margin: 8px auto 0;
+  background: #f43f5e;
+  border: 2px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 6px 12px rgb(244 63 94 / 0.35);
+}
+
+.leaflet-container img {
+  max-width: none;
+}

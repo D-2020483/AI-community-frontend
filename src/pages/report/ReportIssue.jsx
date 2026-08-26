@@ -57,6 +57,7 @@ export default function ReportIssue() {
       category &&
       description.trim() &&
       locationConfirmed &&
+      location.trim() &&
       isValidCoordPair(coords?.lat, coords?.lng) &&
       !submitting,
   );
@@ -88,6 +89,11 @@ export default function ReportIssue() {
           reportId: result.report_id,
           description,
           location,
+          locationName: location,
+          latitude: coords.lat,
+          longitude: coords.lng,
+          lat: coords.lat,
+          lng: coords.lng,
           imageUrl: imageDataUrl,
           category: result.issue_category,
           authority: result.assigned_authority?.name || "Relevant Authority",
@@ -142,6 +148,11 @@ export default function ReportIssue() {
         reportId: aiResult.report_id,
         description,
         location,
+        locationName: location,
+        latitude: coords?.lat,
+        longitude: coords?.lng,
+        lat: coords?.lat,
+        lng: coords?.lng,
         imageUrl: imageDataUrl,
         category,
         authority,
