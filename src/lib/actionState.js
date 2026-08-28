@@ -76,48 +76,76 @@ export function formatRouteDuration(seconds) {
 const LOCATION_ACCESS_MESSAGE =
   "Unable to access your current location. Please enable location permission and try again.";
 
+const GEO_PERMISSION_DENIED = 1;
+const GEO_POSITION_UNAVAILABLE = 2;
+const GEO_TIMEOUT = 3;
+
 function geolocationErrorMessage(error) {
+  if (typeof window !== "undefined" && window.isSecureContext === false) {
+    return "Unable to access your current location. Open Civic Link over HTTPS or localhost, then try again.";
+  }
   if (!error) return LOCATION_ACCESS_MESSAGE;
-  if (error.code === 1) return LOCATION_ACCESS_MESSAGE;
-  if (error.code === 2) {
+  if (error.code === GEO_PERMISSION_DENIED) return LOCATION_ACCESS_MESSAGE;
+  if (error.code === GEO_POSITION_UNAVAILABLE) {
     return "Unable to access your current location. GPS is unavailable. Please try again.";
   }
-  if (error.code === 3) {
+  if (error.code === GEO_TIMEOUT) {
     return "Unable to access your current location. The location request timed out. Please try again.";
   }
   return LOCATION_ACCESS_MESSAGE;
 }
 
-export function getBrowserCoordinates(options = {}) {
-  return new Promise((resolve, reject) => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
-      reject(
-        new Error(
-          "Unable to access your current location. This browser does not support geolocation.",
-        ),
-      );
-      return;
-    }
+function readPositionCoords(pos) {
+  const lat = pos?.coords?.latitude;
+  const lng = pos?.coords?.longitude;
+  if (!isValidCoordPair(lat, lng)) return null;
+  return { lat, lng };
+}
 
+function requestBrowserPosition(options) {
+  return new Promise((resolve, reject) => {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        if (!isValidCoordPair(lat, lng)) {
-          reject(new Error(LOCATION_ACCESS_MESSAGE));
+        const coords = readPositionCoords(pos);
+        if (!coords) {
+          reject({ code: GEO_POSITION_UNAVAILABLE });
           return;
         }
-        resolve({ lat, lng });
+        resolve(coords);
       },
-      (error) => reject(new Error(geolocationErrorMessage(error))),
-      {
-        enableHighAccuracy: true,
-        timeout: 12000,
-        maximumAge: 0,
-        ...options,
-      },
+      (error) => reject(error || { code: GEO_POSITION_UNAVAILABLE }),
+      options,
     );
   });
+}
+
+export async function getBrowserCoordinates(options = {}) {
+  if (typeof navigator === "undefined" || !navigator.geolocation) {
+    throw new Error(
+      "Unable to access your current location. This browser does not support geolocation.",
+    );
+  }
+
+  if (typeof window !== "undefined" && window.isSecureContext === false) {
+    throw new Error(geolocationErrorMessage());
+  }
+
+  const attempts = [
+    { enableHighAccuracy: false, timeout: 20000, maximumAge: 60000 },
+    { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
+  ];
+
+  let lastError;
+  for (const attempt of attempts) {
+    try {
+      return await requestBrowserPosition({ ...attempt, ...options });
+    } catch (error) {
+      lastError = error;
+      if (error?.code === GEO_PERMISSION_DENIED) break;
+    }
+  }
+
+  throw new Error(geolocationErrorMessage(lastError));
 }
 
 function mapGeocodeHit(hit, fallbackName) {
@@ -221,21 +249,25 @@ function mapDrivingRoute(payload) {
 }
 
 async function fetchDrivingRouteOsrm(fromLat, fromLng, toLat, toLng, { signal } = {}) {
-  const path = `${Number(fromLng)},${Number(fromLat)};${Number(toLng)},${Number(toLat)}`;
-  const response = await fetch(
-    `https://router.project-osrm.org/route/v1/driving/${path}?overview=full&geometries=geojson`,
-    { headers: { Accept: "application/json" }, signal },
-  );
-  if (!response.ok) return null;
-  const payload = await response.json();
-  const route = Array.isArray(payload?.routes) ? payload.routes[0] : null;
-  const geometry = route?.geometry?.coordinates;
-  if (!Array.isArray(geometry)) return null;
-  return mapDrivingRoute({
-    coordinates: geometry.map(([lng, lat]) => ({ lat, lng })),
-    distanceMeters: route.distance,
-    durationSeconds: route.duration,
-  });
+  try {
+    const path = `${Number(fromLng)},${Number(fromLat)};${Number(toLng)},${Number(toLat)}`;
+    const response = await fetch(
+      `https://router.project-osrm.org/route/v1/driving/${path}?overview=full&geometries=geojson`,
+      { headers: { Accept: "application/json" }, signal },
+    );
+    if (!response.ok) return null;
+    const payload = await response.json();
+    const route = Array.isArray(payload?.routes) ? payload.routes[0] : null;
+    const geometry = route?.geometry?.coordinates;
+    if (!Array.isArray(geometry)) return null;
+    return mapDrivingRoute({
+      coordinates: geometry.map(([lng, lat]) => ({ lat, lng })),
+      distanceMeters: route.distance,
+      durationSeconds: route.duration,
+    });
+  } catch {
+    return null;
+  }
 }
 
 export async function fetchDrivingRoute(

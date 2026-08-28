@@ -201,17 +201,30 @@ export default function OfficerTaskDetails() {
     setRouteDistanceMeters(null);
     setRouteDurationSeconds(null);
 
+    let origin;
     try {
-      const origin = await getBrowserCoordinates();
+      origin = await getBrowserCoordinates();
       setOfficerCoords(origin);
+    } catch (error) {
+      setOfficerCoords(null);
+      setOfficerLocationName("");
+      const message =
+        error.message ||
+        "Unable to access your current location. Please enable location permission and try again.";
+      setLocationError(message);
+      toast.error(message);
+      setNavigating(false);
+      return;
+    }
 
-      try {
-        const named = await reverseGeocode(origin.lat, origin.lng);
-        setOfficerLocationName(named?.displayName || "Officer Current Location");
-      } catch {
-        setOfficerLocationName("Officer Current Location");
-      }
+    try {
+      const named = await reverseGeocode(origin.lat, origin.lng);
+      setOfficerLocationName(named?.displayName || "Officer Current Location");
+    } catch {
+      setOfficerLocationName("Officer Current Location");
+    }
 
+    try {
       const route = await fetchDrivingRoute(
         origin.lat,
         origin.lng,
@@ -228,16 +241,9 @@ export default function OfficerTaskDetails() {
           "A road route could not be calculated. Both locations are shown on the map.",
         );
       }
-    } catch (error) {
-      setOfficerCoords(null);
-      setOfficerLocationName("");
-      setLocationError(
-        error.message ||
-          "Unable to access your current location. Please enable location permission and try again.",
-      );
-      toast.error(
-        error.message ||
-          "Unable to access your current location. Please enable location permission and try again.",
+    } catch {
+      setRouteMessage(
+        "A road route could not be calculated. Both locations are shown on the map.",
       );
     } finally {
       setNavigating(false);
