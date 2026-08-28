@@ -63,8 +63,8 @@ export function mapComplaintToAuthorityView(report) {
     citizenEmail: report.citizenEmail || "",
     assignedOfficer: report.assignedOfficer || "",
     reason: report.reason || "",
-    lat: report.lat ?? null,
-    lng: report.lng ?? null,
+    lat: report.lat ?? report.latitude ?? null,
+    lng: report.lng ?? report.longitude ?? null,
     ai: {
       detectedIssue:
         report.detectedIssue || list.title || "Civic issue reported",

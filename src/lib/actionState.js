@@ -47,21 +47,55 @@ export function parseCoordinates(value, lat, lng) {
 }
 
 export function navigationUrl(lat, lng, originLat, originLng) {
-  const params = [
-    `destination=${encodeURIComponent(`${lat},${lng}`)}`,
-  ];
+  const params = ["api=1"];
   if (isValidCoordPair(originLat, originLng)) {
-    params.push(
-      `origin=${encodeURIComponent(`${originLat},${originLng}`)}`,
-    );
+    params.push(`origin=${encodeURIComponent(`${originLat},${originLng}`)}`);
   }
-  return `https://www.google.com/maps/dir/?api=1&${params.join("&")}`;
+  params.push(`destination=${encodeURIComponent(`${lat},${lng}`)}`);
+  return `https://www.google.com/maps/dir/?${params.join("&")}`;
+}
+
+export function formatRouteDistance(meters) {
+  const value = Number(meters);
+  if (!Number.isFinite(value) || value < 0) return null;
+  if (value >= 1000) return `${(value / 1000).toFixed(1)} km`;
+  return `${Math.round(value)} m`;
+}
+
+export function formatRouteDuration(seconds) {
+  const value = Number(seconds);
+  if (!Number.isFinite(value) || value < 0) return null;
+  const minutes = Math.round(value / 60);
+  if (minutes < 1) return "< 1 min";
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? `${hours} hr ${rest} min` : `${hours} hr`;
+}
+
+const LOCATION_ACCESS_MESSAGE =
+  "Unable to access your current location. Please enable location permission and try again.";
+
+function geolocationErrorMessage(error) {
+  if (!error) return LOCATION_ACCESS_MESSAGE;
+  if (error.code === 1) return LOCATION_ACCESS_MESSAGE;
+  if (error.code === 2) {
+    return "Unable to access your current location. GPS is unavailable. Please try again.";
+  }
+  if (error.code === 3) {
+    return "Unable to access your current location. The location request timed out. Please try again.";
+  }
+  return LOCATION_ACCESS_MESSAGE;
 }
 
 export function getBrowserCoordinates(options = {}) {
   return new Promise((resolve, reject) => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
-      reject(new Error("Geolocation is not supported in this browser."));
+      reject(
+        new Error(
+          "Unable to access your current location. This browser does not support geolocation.",
+        ),
+      );
       return;
     }
 
@@ -70,16 +104,16 @@ export function getBrowserCoordinates(options = {}) {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
         if (!isValidCoordPair(lat, lng)) {
-          reject(new Error("Could not read a valid current location."));
+          reject(new Error(LOCATION_ACCESS_MESSAGE));
           return;
         }
         resolve({ lat, lng });
       },
-      () => reject(new Error("Could not read your current location.")),
+      (error) => reject(new Error(geolocationErrorMessage(error))),
       {
         enableHighAccuracy: true,
         timeout: 12000,
-        maximumAge: 15000,
+        maximumAge: 0,
         ...options,
       },
     );
@@ -155,6 +189,80 @@ export async function reverseGeocode(lat, lng, options = {}) {
   }
 
   return reverseGeocodeNominatim(lat, lng, options);
+}
+
+function mapDrivingRoute(payload) {
+  const coords = payload?.coordinates;
+  if (!Array.isArray(coords) || coords.length < 2) return null;
+
+  const coordinates = coords
+    .map((point) => {
+      if (Array.isArray(point)) {
+        const lat = Number(point[0]);
+        const lng = Number(point[1]);
+        return isValidCoordPair(lat, lng) ? { lat, lng } : null;
+      }
+      const lat = Number(point?.lat);
+      const lng = Number(point?.lng ?? point?.lon);
+      return isValidCoordPair(lat, lng) ? { lat, lng } : null;
+    })
+    .filter(Boolean);
+
+  if (coordinates.length < 2) return null;
+
+  const distanceMeters = Number(payload.distanceMeters ?? payload.distance);
+  const durationSeconds = Number(payload.durationSeconds ?? payload.duration);
+
+  return {
+    coordinates,
+    distanceMeters: Number.isFinite(distanceMeters) ? distanceMeters : null,
+    durationSeconds: Number.isFinite(durationSeconds) ? durationSeconds : null,
+  };
+}
+
+async function fetchDrivingRouteOsrm(fromLat, fromLng, toLat, toLng, { signal } = {}) {
+  const path = `${Number(fromLng)},${Number(fromLat)};${Number(toLng)},${Number(toLat)}`;
+  const response = await fetch(
+    `https://router.project-osrm.org/route/v1/driving/${path}?overview=full&geometries=geojson`,
+    { headers: { Accept: "application/json" }, signal },
+  );
+  if (!response.ok) return null;
+  const payload = await response.json();
+  const route = Array.isArray(payload?.routes) ? payload.routes[0] : null;
+  const geometry = route?.geometry?.coordinates;
+  if (!Array.isArray(geometry)) return null;
+  return mapDrivingRoute({
+    coordinates: geometry.map(([lng, lat]) => ({ lat, lng })),
+    distanceMeters: route.distance,
+    durationSeconds: route.duration,
+  });
+}
+
+export async function fetchDrivingRoute(
+  fromLat,
+  fromLng,
+  toLat,
+  toLng,
+  options = {},
+) {
+  if (
+    !isValidCoordPair(fromLat, fromLng) ||
+    !isValidCoordPair(toLat, toLng)
+  ) {
+    return null;
+  }
+
+  try {
+    const data = await apiRequest(
+      `/places/route?fromLat=${encodeURIComponent(fromLat)}&fromLng=${encodeURIComponent(fromLng)}&toLat=${encodeURIComponent(toLat)}&toLng=${encodeURIComponent(toLng)}`,
+    );
+    const mapped = mapDrivingRoute(data?.data);
+    if (mapped) return mapped;
+  } catch {
+    /* Fall back to public routing if the API is unavailable. */
+  }
+
+  return fetchDrivingRouteOsrm(fromLat, fromLng, toLat, toLng, options);
 }
 
 export async function searchPlace(query) {

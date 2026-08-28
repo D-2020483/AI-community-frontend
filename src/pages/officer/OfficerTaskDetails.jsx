@@ -26,11 +26,13 @@ import {
   allowedStatusOptions,
   canTransitionStatus,
   isTerminalOfficerStatus,
+  fetchDrivingRoute,
   getBrowserCoordinates,
   isValidCoordPair,
   navigationUrl,
   normalizeOfficerStatus,
   parseCoordinates,
+  reverseGeocode,
 } from "@/lib/actionState";
 
 const priorityStyles = {
@@ -65,6 +67,12 @@ export default function OfficerTaskDetails() {
   const [postingUpdate, setPostingUpdate] = useState(false);
   const [resolving, setResolving] = useState(false);
   const [officerCoords, setOfficerCoords] = useState(null);
+  const [officerLocationName, setOfficerLocationName] = useState("");
+  const [routeCoordinates, setRouteCoordinates] = useState([]);
+  const [routeDistanceMeters, setRouteDistanceMeters] = useState(null);
+  const [routeDurationSeconds, setRouteDurationSeconds] = useState(null);
+  const [routeMessage, setRouteMessage] = useState("");
+  const [locationError, setLocationError] = useState("");
   const [navigating, setNavigating] = useState(false);
 
   useEffect(() => {
@@ -104,7 +112,11 @@ export default function OfficerTaskDetails() {
     currentStatus,
     OFFICER_STATUS_FLOW,
   );
-  const incidentCoords = parseCoordinates(task.location, task.lat, task.lng);
+  const incidentCoords = parseCoordinates(
+    task.location,
+    task.lat ?? task.latitude,
+    task.lng ?? task.longitude,
+  );
   const canNavigate = isValidCoordPair(incidentCoords?.lat, incidentCoords?.lng);
   const alreadyAccepted =
     currentStatus === "Accepted" ||
@@ -183,30 +195,67 @@ export default function OfficerTaskDetails() {
   const handleNavigate = async () => {
     if (!canNavigate || navigating) return;
     setNavigating(true);
-    const mapsTab = window.open("", "_blank");
-    let origin = officerCoords;
-    try {
-      origin = await getBrowserCoordinates();
-      setOfficerCoords(origin);
-    } catch (error) {
-      toast.error(
-        error.message || "Could not read your current location.",
-      );
-    }
+    setLocationError("");
+    setRouteMessage("");
+    setRouteCoordinates([]);
+    setRouteDistanceMeters(null);
+    setRouteDurationSeconds(null);
 
-    const url = navigationUrl(
-      incidentCoords.lat,
-      incidentCoords.lng,
-      origin?.lat,
-      origin?.lng,
-    );
-    if (mapsTab) {
-      mapsTab.opener = null;
-      mapsTab.location.href = url;
-    } else {
-      window.open(url, "_blank", "noopener,noreferrer");
+    try {
+      const origin = await getBrowserCoordinates();
+      setOfficerCoords(origin);
+
+      try {
+        const named = await reverseGeocode(origin.lat, origin.lng);
+        setOfficerLocationName(named?.displayName || "Officer Current Location");
+      } catch {
+        setOfficerLocationName("Officer Current Location");
+      }
+
+      const route = await fetchDrivingRoute(
+        origin.lat,
+        origin.lng,
+        incidentCoords.lat,
+        incidentCoords.lng,
+      );
+
+      if (route?.coordinates?.length >= 2) {
+        setRouteCoordinates(route.coordinates);
+        setRouteDistanceMeters(route.distanceMeters);
+        setRouteDurationSeconds(route.durationSeconds);
+      } else {
+        setRouteMessage(
+          "A road route could not be calculated. Both locations are shown on the map.",
+        );
+      }
+    } catch (error) {
+      setOfficerCoords(null);
+      setOfficerLocationName("");
+      setLocationError(
+        error.message ||
+          "Unable to access your current location. Please enable location permission and try again.",
+      );
+      toast.error(
+        error.message ||
+          "Unable to access your current location. Please enable location permission and try again.",
+      );
+    } finally {
+      setNavigating(false);
     }
-    setNavigating(false);
+  };
+
+  const handleOpenExternal = () => {
+    if (!canNavigate || !officerCoords) return;
+    window.open(
+      navigationUrl(
+        incidentCoords.lat,
+        incidentCoords.lng,
+        officerCoords.lat,
+        officerCoords.lng,
+      ),
+      "_blank",
+      "noopener,noreferrer",
+    );
   };
 
   const handleResolve = async () => {
@@ -296,9 +345,15 @@ export default function OfficerTaskDetails() {
               lng={incidentCoords?.lng}
               originLat={officerCoords?.lat}
               originLng={officerCoords?.lng}
+              originName={officerLocationName}
+              routeCoordinates={routeCoordinates}
+              distanceMeters={routeDistanceMeters}
+              durationSeconds={routeDurationSeconds}
+              routeMessage={routeMessage}
               reportId={task.id}
               title={task.title}
               description={task.description}
+              onOpenExternal={handleOpenExternal}
             />
           </div>
 
@@ -329,13 +384,25 @@ export default function OfficerTaskDetails() {
                     : "Accept task"}
               </button>
               )}
-              <button
-                onClick={handleNavigate}
-                disabled={!canNavigate || navigating}
-                className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl ${PRIMARY_BTN}`}
-              >
-                🧭 {navigating ? "Getting your location..." : "Navigate to Incident"}
-              </button>
+              <div className="space-y-1.5">
+                <button
+                  onClick={handleNavigate}
+                  disabled={!canNavigate || navigating}
+                  className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl ${PRIMARY_BTN}`}
+                >
+                  🧭 {navigating ? "Getting your location..." : "Navigate to Incident"}
+                </button>
+                {!canNavigate ? (
+                  <p className="text-[11px] font-medium text-slate-500">
+                    Unable to navigate. Incident location is unavailable.
+                  </p>
+                ) : null}
+                {locationError ? (
+                  <p className="text-[11px] font-medium text-rose-600">
+                    {locationError}
+                  </p>
+                ) : null}
+              </div>
               <button
                 onClick={() => navigate("/officer/updates")}
                 className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-indigo-600 border border-indigo-200 rounded-xl hover:bg-indigo-50 transition-all cursor-pointer"
