@@ -46,10 +46,44 @@ export function parseCoordinates(value, lat, lng) {
   return isValidCoordPair(parsed.lat, parsed.lng) ? parsed : null;
 }
 
-export function navigationUrl(lat, lng) {
-  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
-    `${lat},${lng}`,
-  )}`;
+export function navigationUrl(lat, lng, originLat, originLng) {
+  const params = [
+    `destination=${encodeURIComponent(`${lat},${lng}`)}`,
+  ];
+  if (isValidCoordPair(originLat, originLng)) {
+    params.push(
+      `origin=${encodeURIComponent(`${originLat},${originLng}`)}`,
+    );
+  }
+  return `https://www.google.com/maps/dir/?api=1&${params.join("&")}`;
+}
+
+export function getBrowserCoordinates(options = {}) {
+  return new Promise((resolve, reject) => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      reject(new Error("Geolocation is not supported in this browser."));
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        if (!isValidCoordPair(lat, lng)) {
+          reject(new Error("Could not read a valid current location."));
+          return;
+        }
+        resolve({ lat, lng });
+      },
+      () => reject(new Error("Could not read your current location.")),
+      {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 15000,
+        ...options,
+      },
+    );
+  });
 }
 
 function mapGeocodeHit(hit, fallbackName) {

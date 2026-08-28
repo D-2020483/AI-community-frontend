@@ -172,15 +172,29 @@
   border: none;
 }
 
-.civic-incident-marker-pin {
+.civic-incident-marker-pin,
+.civic-officer-marker-pin {
   width: 18px;
   height: 18px;
   margin: 8px auto 0;
-  background: #f43f5e;
   border: 2px solid #fff;
   border-radius: 50% 50% 50% 0;
   transform: rotate(-45deg);
+}
+
+.civic-incident-marker-pin {
+  background: #f43f5e;
   box-shadow: 0 6px 12px rgb(244 63 94 / 0.35);
+}
+
+.civic-officer-marker {
+  background: transparent;
+  border: none;
+}
+
+.civic-officer-marker-pin {
+  background: #4f46e5;
+  box-shadow: 0 6px 12px rgb(79 70 229 / 0.35);
 }
 
 .leaflet-container img {

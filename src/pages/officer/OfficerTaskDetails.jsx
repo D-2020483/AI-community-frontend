@@ -26,6 +26,7 @@ import {
   allowedStatusOptions,
   canTransitionStatus,
   isTerminalOfficerStatus,
+  getBrowserCoordinates,
   isValidCoordPair,
   navigationUrl,
   normalizeOfficerStatus,
@@ -63,6 +64,8 @@ export default function OfficerTaskDetails() {
   const [accepting, setAccepting] = useState(false);
   const [postingUpdate, setPostingUpdate] = useState(false);
   const [resolving, setResolving] = useState(false);
+  const [officerCoords, setOfficerCoords] = useState(null);
+  const [navigating, setNavigating] = useState(false);
 
   useEffect(() => {
     if (task?.status) setStatus(task.status);
@@ -177,6 +180,35 @@ export default function OfficerTaskDetails() {
     }
   };
 
+  const handleNavigate = async () => {
+    if (!canNavigate || navigating) return;
+    setNavigating(true);
+    const mapsTab = window.open("", "_blank");
+    let origin = officerCoords;
+    try {
+      origin = await getBrowserCoordinates();
+      setOfficerCoords(origin);
+    } catch (error) {
+      toast.error(
+        error.message || "Could not read your current location.",
+      );
+    }
+
+    const url = navigationUrl(
+      incidentCoords.lat,
+      incidentCoords.lng,
+      origin?.lat,
+      origin?.lng,
+    );
+    if (mapsTab) {
+      mapsTab.opener = null;
+      mapsTab.location.href = url;
+    } else {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+    setNavigating(false);
+  };
+
   const handleResolve = async () => {
     if (!canResolve) return;
     setResolving(true);
@@ -262,6 +294,8 @@ export default function OfficerTaskDetails() {
               location={task.location}
               lat={incidentCoords?.lat}
               lng={incidentCoords?.lng}
+              originLat={officerCoords?.lat}
+              originLng={officerCoords?.lng}
               reportId={task.id}
               title={task.title}
               description={task.description}
@@ -296,18 +330,11 @@ export default function OfficerTaskDetails() {
               </button>
               )}
               <button
-                onClick={() => {
-                  if (!canNavigate) return;
-                  window.open(
-                    navigationUrl(incidentCoords.lat, incidentCoords.lng),
-                    "_blank",
-                    "noopener,noreferrer",
-                  );
-                }}
-                disabled={!canNavigate}
+                onClick={handleNavigate}
+                disabled={!canNavigate || navigating}
                 className={`inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl ${PRIMARY_BTN}`}
               >
-                🧭 Navigate to Incident
+                🧭 {navigating ? "Getting your location..." : "Navigate to Incident"}
               </button>
               <button
                 onClick={() => navigate("/officer/updates")}

@@ -13,6 +13,14 @@ export const incidentIcon = L.divIcon({
   popupAnchor: [0, -28],
 });
 
+export const officerIcon = L.divIcon({
+  className: "civic-officer-marker",
+  html: '<div class="civic-officer-marker-pin"></div>',
+  iconSize: [28, 36],
+  iconAnchor: [14, 34],
+  popupAnchor: [0, -28],
+});
+
 export const OSM_TILE_URL = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 export const OSM_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';

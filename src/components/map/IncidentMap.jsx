@@ -1,25 +1,44 @@
 import React, { useEffect } from "react";
 import { MapPin } from "lucide-react";
-import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
+import L from "leaflet";
 import {
-  DEFAULT_MAP_CENTER,
-  DEFAULT_MAP_ZOOM,
+  MapContainer,
+  Marker,
+  Polyline,
+  Popup,
+  TileLayer,
+  useMap,
+} from "react-leaflet";
+import {
   OSM_ATTRIBUTION,
   OSM_TILE_URL,
   SELECTED_MAP_ZOOM,
   incidentIcon,
+  officerIcon,
 } from "@/lib/mapSetup";
 import { isValidCoordPair } from "@/lib/actionState";
 
-function FitIncident({ lat, lng }) {
+function FitRoute({ lat, lng, originLat, originLng }) {
   const map = useMap();
 
   useEffect(() => {
     map.invalidateSize();
-    if (isValidCoordPair(lat, lng)) {
+    const hasIncident = isValidCoordPair(lat, lng);
+    const hasOrigin = isValidCoordPair(originLat, originLng);
+
+    if (hasIncident && hasOrigin) {
+      const bounds = L.latLngBounds(
+        [Number(originLat), Number(originLng)],
+        [Number(lat), Number(lng)],
+      );
+      map.fitBounds(bounds, { padding: [36, 36], maxZoom: SELECTED_MAP_ZOOM });
+      return;
+    }
+
+    if (hasIncident) {
       map.setView([Number(lat), Number(lng)], SELECTED_MAP_ZOOM);
     }
-  }, [lat, lng, map]);
+  }, [lat, lng, originLat, originLng, map]);
 
   return null;
 }
@@ -28,11 +47,14 @@ export function IncidentMap({
   location,
   lat,
   lng,
+  originLat,
+  originLng,
   reportId,
   title,
   description,
 }) {
   const hasCoords = isValidCoordPair(lat, lng);
+  const hasOrigin = isValidCoordPair(originLat, originLng);
 
   if (!hasCoords) {
     return (
@@ -57,7 +79,41 @@ export function IncidentMap({
           className="h-full w-full"
         >
           <TileLayer attribution={OSM_ATTRIBUTION} url={OSM_TILE_URL} />
-          <FitIncident lat={lat} lng={lng} />
+          <FitRoute
+            lat={lat}
+            lng={lng}
+            originLat={originLat}
+            originLng={originLng}
+          />
+          {hasOrigin ? (
+            <>
+              <Marker
+                position={[Number(originLat), Number(originLng)]}
+                icon={officerIcon}
+              >
+                <Popup>
+                  <div className="text-xs space-y-1 min-w-[140px]">
+                    <p className="font-bold text-slate-900">Your location</p>
+                    <p className="text-slate-500">
+                      {Number(originLat).toFixed(5)}, {Number(originLng).toFixed(5)}
+                    </p>
+                  </div>
+                </Popup>
+              </Marker>
+              <Polyline
+                positions={[
+                  [Number(originLat), Number(originLng)],
+                  [Number(lat), Number(lng)],
+                ]}
+                pathOptions={{
+                  color: "#4f46e5",
+                  weight: 3,
+                  opacity: 0.75,
+                  dashArray: "8 6",
+                }}
+              />
+            </>
+          ) : null}
           <Marker position={[Number(lat), Number(lng)]} icon={incidentIcon}>
             <Popup>
               <div className="text-xs space-y-1 min-w-[160px]">
@@ -81,17 +137,30 @@ export function IncidentMap({
           </Marker>
         </MapContainer>
       </div>
-      <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2.5">
-        <p className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
-          <MapPin className="h-3.5 w-3.5 text-rose-500" />
-          {location || "Selected incident location"}
-        </p>
-        <p className="text-[11px] text-slate-500 mt-1">
-          {Number(lat).toFixed(5)}, {Number(lng).toFixed(5)}
-        </p>
-        {title ? (
-          <p className="text-[11px] text-slate-500 mt-1">{title}</p>
+      <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2.5 space-y-2">
+        {hasOrigin ? (
+          <div>
+            <p className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+              <MapPin className="h-3.5 w-3.5 text-indigo-600" />
+              Your current location
+            </p>
+            <p className="text-[11px] text-slate-500 mt-1">
+              {Number(originLat).toFixed(5)}, {Number(originLng).toFixed(5)}
+            </p>
+          </div>
         ) : null}
+        <div>
+          <p className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+            <MapPin className="h-3.5 w-3.5 text-rose-500" />
+            {location || "Incident destination"}
+          </p>
+          <p className="text-[11px] text-slate-500 mt-1">
+            {Number(lat).toFixed(5)}, {Number(lng).toFixed(5)}
+          </p>
+          {title ? (
+            <p className="text-[11px] text-slate-500 mt-1">{title}</p>
+          ) : null}
+        </div>
       </div>
     </div>
   );
